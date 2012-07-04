@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <title>CoffeeScript API Documentation</title>
+  <link rel='stylesheet' href='../../assets/codo.css' type='text/css'>
+  <script src='../../assets/codo.js'></script>
+  <script src='../../assets/search_data.js'></script>
+</head>
+  <body>
+    <div id='base' data-path='../../'></div>
+<div id='header'>
+  <div id='menu'>
+    <a href='../../class_index.html' title='Index'>Index</a>
+    &raquo;
+    <span class='title'>Heron</span>
+    &raquo;
+    <span class='title'>Vector</span>
+    <nav>
+      <ul>
+        <li class='noframes'>
+          (<a class='noframes' href='#'>no frames</a>)
+        </li>
+      </ul>
+    </nav>
+    <div id='search'>
+      <a id='class_list_link' href='../../class_list.html'>Classes</a>
+      <a id='mixin_list_link' href='../../mixin_list.html'>Mixins</a>
+      <a id='method_list_link' href='../../method_list.html'>Methods</a>
+      <a id='file_list_link' href='../../file_list.html'>Files</a>
+    </div>
+  </div>
+  <iframe id='search_frame'></iframe>
+  <div id='fuzzySearch'>
+    <input type='text'>
+    <ol></ol>
+  </div>
+  <div id='help'>
+    <p>
+      Quickly fuzzy find classes, mixins, methods, file:
+    </p>
+    <ul>
+      <li>
+        <span>Ctrl-T</span>
+        Open fuzzy finder dialog
+      </li>
+    </ul>
+    <p>
+      In frame mode you can toggle the list naviation frame on the left side:
+    </p>
+    <ul>
+      <li>
+        <span>Ctrl-L</span>
+        Toggle list view
+      </li>
+    </ul>
+    <p>
+      You can focus a list in frame mode or toggle a tab in frameless mode:
+    </p>
+    <ul>
+      <li>
+        <span>Ctrl-C</span>
+        Class list
+      </li>
+      <li>
+        <span>Ctrl-I</span>
+        Mixin list
+      </li>
+      <li>
+        <span>Ctrl-M</span>
+        Method list
+      </li>
+      <li>
+        <span>Ctrl-F</span>
+        File list
+      </li>
+    </ul>
+    <p>
+      You can focus and blur the search input:
+    </p>
+    <ul>
+      <li>
+        <span>Ctrl-S</span>
+        Focus search input
+      </li>
+      <li>
+        <span>Esc</span>
+        Blur search input
+      </li>
+    </ul>
+    <p>
+      In frameless mode you can close the list tab:
+    </p>
+    <ul>
+      <li>
+        <span>Esc</span>
+        Close list tab
+      </li>
+    </ul>
+  </div>
+</div>
+    <div id='content'>
+      <h1>
+        Class:
+        Heron.Vector
+      </h1>
+      <table class='box'>
+        <tr>
+          <td>Defined in:</td>
+          <td>vector.coffee</td>
+        </tr>
+      </table>
+      <h2>Overview</h2>
+      <div class='docstring'>
+  <p>Collection of vector routines. </p> <p>All methods end in their dimension.  E.g., create2 for 2d vectors. </p> <p>This library is designed to be fast.  This is done in two ways.  First,  vectors are stored as Float32Arrays.  Second, when possible,  methods <em>overwrite</em> their first argument and also return it.  This allows reuse of objects. </p> <pre><code>a = vec2(1, 2); b = vec2(3, 4); c = add2(a, b)</code></pre> <p><code>a</code> will now have value (4, 6) and <code>c</code> will refer to the same object as <code>a</code>. </p> <p>If you do not want the first argument to be overwritte, use a dup method. </p> <pre><code>a = vec2(1, 2); b = vec2(3, 4); c = add2(dup2(a), b)</code></pre> <p><code>a</code> will have value (1, 2) and <code>c</code> will have value (4, 6). </p> <p>As a convention, if the first argument is overwritten, it will be <code>a</code> and if it is not, it will be a different name, e.g., <code>v</code>. </p> 
+</div>
+<div class='tags'>
+  <h3>Author:</h3>
+  <ul class='author'>
+    <li>
+      Christopher Alfeld (calfeld@calfeld.net)
+    </li>
+  </ul>
+  <h3>Copyright:</h3>
+  <ul class='copyright'>
+    <li>
+      2012 Christopher Alfeld
+    </li>
+  </ul>
+</div>
+      <h2>Class Method Summary</h2>
+      <ul class='summary'>
+  <li>
+    <span class='signature'>
+      <a href='#vec2-class'>
+        + (2-vector) <strong>vec2</strong>(x = 0, y = 0)
+      </a>
+    </span>
+    <span class='desc'>
+      Construct 2-vector.
+    </span>
+  </li>
+  <li>
+    <span class='signature'>
+      <a href='#dup2-class'>
+        + (2-vector) <strong>dup2</strong>(v)
+      </a>
+    </span>
+    <span class='desc'>
+      Duplicate a 2-vector.
+    </span>
+  </li>
+  <li>
+    <span class='signature'>
+      <a href='#equal2-class'>
+        + (void) <strong>equal2</strong>(v, b)
+      </a>
+    </span>
+    <span class='desc'>
+      Are two vectors equal @return true iff a and b represent the same point.
+    </span>
+  </li>
+  <li>
+    <span class='signature'>
+      <a href='#set2-class'>
+        + (2-vector) <strong>set2</strong>(a, x, y)
+      </a>
+    </span>
+    <span class='desc'>
+      a = (x, y)
+    </span>
+  </li>
+  <li>
+    <span class='signature'>
+      <a href='#add2-class'>
+        + (2-vector) <strong>add2</strong>(a, b)
+      </a>
+    </span>
+    <span class='desc'>
+      a = a + b
+    </span>
+  </li>
+  <li>
+    <span class='signature'>
+      <a href='#sub2-class'>
+        + (2-vector) <strong>sub2</strong>(a, b)
+      </a>
+    </span>
+    <span class='desc'>
+      a = a - b
+    </span>
+  </li>
+  <li>
+    <span class='signature'>
+      <a href='#dot2-class'>
+        + (float) <strong>dot2</strong>(a, b)
+      </a>
+    </span>
+    <span class='desc'>
+      v dot b
+    </span>
+  </li>
+  <li>
+    <span class='signature'>
+      <a href='#negate2-class'>
+        + (2-vector) <strong>negate2</strong>(a)
+      </a>
+    </span>
+    <span class='desc'>
+      -a
+    </span>
+  </li>
+  <li>
+    <span class='signature'>
+      <a href='#length2-class'>
+        + (float) <strong>length2</strong>(v)
+      </a>
+    </span>
+    <span class='desc'>
+      Length of v
+    </span>
+  </li>
+  <li>
+    <span class='signature'>
+      <a href='#normalize2-class'>
+        + (2-vector) <strong>normalize2</strong>(a)
+      </a>
+    </span>
+    <span class='desc'>
+      Normalize a.
+    </span>
+  </li>
+  <li>
+    <span class='signature'>
+      <a href='#to_s2-class'>
+        + (string) <strong>to_s2</strong>(v)
+      </a>
+    </span>
+    <span class='desc'>
+      String representation of v.
+    </span>
+  </li>
+  <li>
+    <span class='signature'>
+      <a href='#normal2-class'>
+        + (2-vector) <strong>normal2</strong>(a)
+      </a>
+    </span>
+    <span class='desc'>
+      Convert a to a vector normal to a.
+    </span>
+  </li>
+</ul>
+      <h2>Class Method Details</h2>
+      <div class='methods'>
+  <div class='method_details'>
+    <p class='signature' id='vec2-class'>
+      + (2-vector) <strong>vec2</strong>(x = 0, y = 0)
+    </p>
+    <div class='docstring'>
+  <p>Construct 2-vector. </p> 
+</div>
+<div class='tags'>
+  <h3>Parameters:</h3>
+  <ul class='param'>
+    <li>
+      <span class='name'>x</span>
+      <span class='type'>
+        (<tt>float</tt>)
+      </span>
+      &mdash;
+      <span class='desc'>X coordinate.</span>
+    </li>
+    <li>
+      <span class='name'>y</span>
+      <span class='type'>
+        (<tt>float</tt>)
+      </span>
+      &mdash;
+      <span class='desc'>Y coordinate</span>
+    </li>
+  </ul>
+  <h3>Returns:</h3>
+  <ul class='return'>
+    <li>
+      <span class='type'>
+        (<tt>2-vector</tt>)
+      </span>
+      &mdash;
+      <span class='desc'>Vector of [x,y]</span>
+    </li>
+  </ul>
+</div>
+  </div>
+  <div class='method_details'>
+    <p class='signature' id='dup2-class'>
+      + (2-vector) <strong>dup2</strong>(v)
+    </p>
+    <div class='docstring'>
+  <p>Duplicate a 2-vector. </p> 
+</div>
+<div class='tags'>
+  <h3>Parameters:</h3>
+  <ul class='param'>
+    <li>
+      <span class='name'>v</span>
+      <span class='type'>
+        (<tt>2-vector</tt>)
+      </span>
+      &mdash;
+      <span class='desc'>Vector to duplicate.</span>
+    </li>
+  </ul>
+  <h3>Returns:</h3>
+  <ul class='return'>
+    <li>
+      <span class='type'>
+        (<tt>2-vector</tt>)
+      </span>
+      &mdash;
+      <span class='desc'>Copy of v.</span>
+    </li>
+  </ul>
+</div>
+  </div>
+  <div class='method_details'>
+    <p class='signature' id='equal2-class'>
+      + (void) <strong>equal2</strong>(v, b)
+    </p>
+    <div class='docstring'>
+  <p>Are two vectors equal </p> <p>@return true iff a and b represent the same point. </p> 
+</div>
+<div class='tags'>
+  <h3>Parameters:</h3>
+  <ul class='param'>
+    <li>
+      <span class='name'>v</span>
+      <span class='type'>
+        (<tt>2-vector</tt>)
+      </span>
+      &mdash;
+      <span class='desc'>Vector to compare to b.</span>
+    </li>
+    <li>
+      <span class='name'>b</span>
+      <span class='type'>
+        (<tt>2-vector</tt>)
+      </span>
+      &mdash;
+      <span class='desc'>Vector to compare to a.</span>
+    </li>
+  </ul>
+</div>
+  </div>
+  <div class='method_details'>
+    <p class='signature' id='set2-class'>
+      + (2-vector) <strong>set2</strong>(a, x, y)
+    </p>
+    <div class='docstring'>
+  <p>a = (x, y) </p> 
+</div>
+<div class='tags'>
+  <h3>Parameters:</h3>
+  <ul class='param'>
+    <li>
+      <span class='name'>a</span>
+      <span class='type'>
+        (<tt>2-vector</tt>)
+      </span>
+      &mdash;
+      <span class='desc'>Vector to set value of.</span>
+    </li>
+    <li>
+      <span class='name'>x</span>
+      <span class='type'>
+        (<tt>float</tt>)
+      </span>
+      &mdash;
+      <span class='desc'>X coordinate.</span>
+    </li>
+    <li>
+      <span class='name'>y</span>
+      <span class='type'>
+        (<tt>float</tt>)
+      </span>
+      &mdash;
+      <span class='desc'>Y coordinate.</span>
+    </li>
+  </ul>
+  <h3>Returns:</h3>
+  <ul class='return'>
+    <li>
+      <span class='type'>
+        (<tt>2-vector</tt>)
+      </span>
+      &mdash;
+      <span class='desc'>a</span>
+    </li>
+  </ul>
+</div>
+  </div>
+  <div class='method_details'>
+    <p class='signature' id='add2-class'>
+      + (2-vector) <strong>add2</strong>(a, b)
+    </p>
+    <div class='docstring'>
+  <p>a = a + b </p> 
+</div>
+<div class='tags'>
+  <h3>Parameters:</h3>
+  <ul class='param'>
+    <li>
+      <span class='name'>a</span>
+      <span class='type'>
+        (<tt>2-vector</tt>)
+      </span>
+      &mdash;
+      <span class='desc'>Vector to add b to.</span>
+    </li>
+    <li>
+      <span class='name'>b</span>
+      <span class='type'>
+        (<tt>2-vector</tt>)
+      </span>
+      &mdash;
+      <span class='desc'>Vector to add to a.</span>
+    </li>
+  </ul>
+  <h3>Returns:</h3>
+  <ul class='return'>
+    <li>
+      <span class='type'>
+        (<tt>2-vector</tt>)
+      </span>
+      &mdash;
+      <span class='desc'>a</span>
+    </li>
+  </ul>
+</div>
+  </div>
+  <div class='method_details'>
+    <p class='signature' id='sub2-class'>
+      + (2-vector) <strong>sub2</strong>(a, b)
+    </p>
+    <div class='docstring'>
+  <p>a = a - b </p> 
+</div>
+<div class='tags'>
+  <h3>Parameters:</h3>
+  <ul class='param'>
+    <li>
+      <span class='name'>a</span>
+      <span class='type'>
+        (<tt>2-vector</tt>)
+      </span>
+      &mdash;
+      <span class='desc'>Vector to subtract b from.</span>
+    </li>
+    <li>
+      <span class='name'>b</span>
+      <span class='type'>
+        (<tt>2-vector</tt>)
+      </span>
+      &mdash;
+      <span class='desc'>Vector to subtract from a.</span>
+    </li>
+  </ul>
+  <h3>Returns:</h3>
+  <ul class='return'>
+    <li>
+      <span class='type'>
+        (<tt>2-vector</tt>)
+      </span>
+      &mdash;
+      <span class='desc'>a</span>
+    </li>
+  </ul>
+</div>
+  </div>
+  <div class='method_details'>
+    <p class='signature' id='dot2-class'>
+      + (float) <strong>dot2</strong>(a, b)
+    </p>
+    <div class='docstring'>
+  <p>v dot b </p> 
+</div>
+<div class='tags'>
+  <h3>Parameters:</h3>
+  <ul class='param'>
+    <li>
+      <span class='name'>v</span>
+      <span class='type'>
+        (<tt>2-vector</tt>)
+      </span>
+      &mdash;
+      <span class='desc'>Vector to dot with b.</span>
+    </li>
+    <li>
+      <span class='name'>b</span>
+      <span class='type'>
+        (<tt>2-vector</tt>)
+      </span>
+      &mdash;
+      <span class='desc'>Vector to dot with v.</span>
+    </li>
+  </ul>
+  <h3>Returns:</h3>
+  <ul class='return'>
+    <li>
+      <span class='type'>
+        (<tt>float</tt>)
+      </span>
+      &mdash;
+      <span class='desc'>Dot product of v and b.</span>
+    </li>
+  </ul>
+</div>
+  </div>
+  <div class='method_details'>
+    <p class='signature' id='negate2-class'>
+      + (2-vector) <strong>negate2</strong>(a)
+    </p>
+    <div class='docstring'>
+  <p>-a </p> 
+</div>
+<div class='tags'>
+  <h3>Parameters:</h3>
+  <ul class='param'>
+    <li>
+      <span class='name'>a</span>
+      <span class='type'>
+        (<tt>2-vector</tt>)
+      </span>
+      &mdash;
+      <span class='desc'>Vector to negate.</span>
+    </li>
+  </ul>
+  <h3>Returns:</h3>
+  <ul class='return'>
+    <li>
+      <span class='type'>
+        (<tt>2-vector</tt>)
+      </span>
+      &mdash;
+      <span class='desc'>a</span>
+    </li>
+  </ul>
+</div>
+  </div>
+  <div class='method_details'>
+    <p class='signature' id='length2-class'>
+      + (float) <strong>length2</strong>(v)
+    </p>
+    <div class='docstring'>
+  <p>Length of v </p> 
+</div>
+<div class='tags'>
+  <h3>Parameters:</h3>
+  <ul class='param'>
+    <li>
+      <span class='name'>v</span>
+      <span class='type'>
+        (<tt>2-vector</tt>)
+      </span>
+      &mdash;
+      <span class='desc'>Vector to calculate length of.</span>
+    </li>
+  </ul>
+  <h3>Returns:</h3>
+  <ul class='return'>
+    <li>
+      <span class='type'>
+        (<tt>float</tt>)
+      </span>
+      &mdash;
+      <span class='desc'>Length of v.</span>
+    </li>
+  </ul>
+</div>
+  </div>
+  <div class='method_details'>
+    <p class='signature' id='normalize2-class'>
+      + (2-vector) <strong>normalize2</strong>(a)
+    </p>
+    <div class='docstring'>
+  <p>Normalize a. </p> <p>a will have length 1 afeter this completes. </p> 
+</div>
+<div class='tags'>
+  <h3>Parameters:</h3>
+  <ul class='param'>
+    <li>
+      <span class='name'>a</span>
+      <span class='type'>
+        (<tt>2-vector</tt>)
+      </span>
+      &mdash;
+      <span class='desc'>Vector to normalize.</span>
+    </li>
+  </ul>
+  <h3>Returns:</h3>
+  <ul class='return'>
+    <li>
+      <span class='type'>
+        (<tt>2-vector</tt>)
+      </span>
+      &mdash;
+      <span class='desc'>a</span>
+    </li>
+  </ul>
+</div>
+  </div>
+  <div class='method_details'>
+    <p class='signature' id='to_s2-class'>
+      + (string) <strong>to_s2</strong>(v)
+    </p>
+    <div class='docstring'>
+  <p>String representation of v. </p> 
+</div>
+<div class='tags'>
+  <h3>Parameters:</h3>
+  <ul class='param'>
+    <li>
+      <span class='name'>v</span>
+      <span class='type'>
+        (<tt>2-vector</tt>)
+      </span>
+      &mdash;
+      <span class='desc'>Vector to represent.</span>
+    </li>
+  </ul>
+  <h3>Returns:</h3>
+  <ul class='return'>
+    <li>
+      <span class='type'>
+        (<tt>string</tt>)
+      </span>
+      &mdash;
+      <span class='desc'>(x, y) where v = (x, y)</span>
+    </li>
+  </ul>
+</div>
+  </div>
+  <div class='method_details'>
+    <p class='signature' id='normal2-class'>
+      + (2-vector) <strong>normal2</strong>(a)
+    </p>
+    <div class='docstring'>
+  <p>Convert a to a vector normal to a. </p> 
+</div>
+<div class='tags'>
+  <h3>Parameters:</h3>
+  <ul class='param'>
+    <li>
+      <span class='name'>a</span>
+      <span class='type'>
+        (<tt>2-vector</tt>)
+      </span>
+      &mdash;
+      <span class='desc'>Vector to convert.</span>
+    </li>
+  </ul>
+  <h3>Returns:</h3>
+  <ul class='return'>
+    <li>
+      <span class='type'>
+        (<tt>2-vector</tt>)
+      </span>
+      &mdash;
+      <span class='desc'>a</span>
+    </li>
+  </ul>
+</div>
+  </div>
+</div>
+    </div>
+    <div id='footer'>
+  Generated on
+  Wed Jul 04 2012 17:00:56 GMT-0500 (CDT)
+  by
+  <a href='https://github.com/netzpirat/codo' title='CoffeeScript API documentation generator'>Codo</a>
+  v0.9.0
+  (Node.js v0.8.1).
+  &#10034;
+  Press Ctrl-h to see the keyboard shortcuts
+  &#10034;
+  <a href='http://twitter.com/#!/netzpirat'>@netzpirat</a>
+  &#10034;
+  <a href='https://mksoft.ch'>mksoft.ch</a>
+</div>
+  </body>
+</html>
