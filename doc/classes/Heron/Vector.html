@@ -111,7 +111,7 @@
       </table>
       <h2>Overview</h2>
       <div class='docstring'>
-  <p>Collection of vector routines. </p> <p>All methods end in their dimension.  E.g., create2 for 2d vectors. </p> <p>This library is designed to be fast.  This is done in two ways.  First,  vectors are stored as Float32Arrays.  Second, when possible,  methods <em>overwrite</em> their first argument and also return it.  This allows reuse of objects. </p> <pre><code>a = vec2(1, 2); b = vec2(3, 4); c = add2(a, b)</code></pre> <p><code>a</code> will now have value (4, 6) and <code>c</code> will refer to the same object as <code>a</code>. </p> <p>If you do not want the first argument to be overwritte, use a dup method. </p> <pre><code>a = vec2(1, 2); b = vec2(3, 4); c = add2(dup2(a), b)</code></pre> <p><code>a</code> will have value (1, 2) and <code>c</code> will have value (4, 6). </p> <p>As a convention, if the first argument is overwritten, it will be <code>a</code> and if it is not, it will be a different name, e.g., <code>v</code>. </p> 
+  <p>Collection of vector routines. </p> <p>All methods end in their dimension.  E.g., vec2 for 2d vectors. </p> <p>This library is designed to be fast.  This is done in two ways.  First,  vectors are stored as Float32Arrays.  Second, when possible,  methods <em>overwrite</em> their first argument and also return it.  This allows reuse of objects. </p> <pre><code>a = vec2(1, 2); b = vec2(3, 4); c = add2(a, b)</code></pre> <p><code>a</code> will now have value (4, 6) and <code>c</code> will refer to the same object as <code>a</code>. </p> <p>If you do not want the first argument to be overwritte, use a dup method. </p> <pre><code>a = vec2(1, 2); b = vec2(3, 4); c = add2(dup2(a), b)</code></pre> <p><code>a</code> will have value (1, 2) and <code>c</code> will have value (4, 6). </p> <p>As a convention, if the first argument is overwritten, it will be <code>a</code> and if it is not, it will be a different name, e.g., <code>v</code>. </p> 
 </div>
 <div class='tags'>
   <h3>Author:</h3>
@@ -674,7 +674,7 @@
     </div>
     <div id='footer'>
   Generated on
-  Wed Jul 04 2012 17:00:56 GMT-0500 (CDT)
+  Wed Jul 04 2012 18:16:06 GMT-0500 (CDT)
   by
   <a href='https://github.com/netzpirat/codo' title='CoffeeScript API documentation generator'>Codo</a>
   v0.9.0

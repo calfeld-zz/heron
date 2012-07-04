@@ -5,7 +5,7 @@ Heron = @Heron ?= {}
 
 # Collection of vector routines.
 #
-# All methods end in their dimension.  E.g., create2 for 2d vectors.
+# All methods end in their dimension.  E.g., vec2 for 2d vectors.
 #
 # This library is designed to be fast.  This is done in two ways.  First, 
 # vectors are stored as Float32Arrays.  Second, when possible, 
