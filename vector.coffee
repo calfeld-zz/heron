@@ -7,8 +7,8 @@ Heron = @Heron ?= {}
 #
 # All methods end in their dimension.  E.g., vec2 for 2d vectors.
 #
-# This library is designed to be fast.  This is done in two ways.  First, 
-# vectors are stored as Float32Arrays.  Second, when possible, 
+# This library is designed to be fast.  This is done in two ways.  First,
+# vectors are stored as Float32Arrays.  Second, when possible,
 # methods *overwrite* their first argument and also return it.  This allows
 # reuse of objects.
 #
@@ -28,7 +28,7 @@ Heron = @Heron ?= {}
 # @author Christopher Alfeld (calfeld@calfeld.net)
 # @copyright 2012 Christopher Alfeld
 class Heron.Vector
-  
+
   # Construct 2-vector.
   #
   # @param [float] x X coordinate.
@@ -46,7 +46,7 @@ class Heron.Vector
   # @return [2-vector] Copy of v.
   @dup2: ( v ) ->
     Heron.Vector.vec2( v[0], v[1] )
-  
+
   # Are two vectors equal
   #
   # @param [2-vector] v Vector to compare to b.
@@ -54,7 +54,7 @@ class Heron.Vector
   # @return true iff a and b represent the same point.
   @equal2: ( v, b ) ->
     v[0] == b[0] && v[1] == b[1]
-    
+
   # a = (x, y)
   #
   # @param [2-vector] a Vector to set value of.
@@ -65,7 +65,7 @@ class Heron.Vector
     a[0] = x
     a[1] = y
     a
-    
+
   # a = a + b
   #
   # @param [2-vector] a Vector to add b to.
@@ -75,7 +75,7 @@ class Heron.Vector
     a[0] += b[0]
     a[1] += b[1]
     a
-  
+
   # a = a - b
   #
   # @param [2-vector] a Vector to subtract b from.
@@ -85,7 +85,7 @@ class Heron.Vector
     a[0] -= b[0]
     a[1] -= b[1]
     a
-  
+
   # v dot b
   #
   # @param [2-vector] v Vector to dot with b.
@@ -93,7 +93,7 @@ class Heron.Vector
   # @return [float] Dot product of v and b.
   @dot2: ( a, b ) ->
     a[0] * b[0] + a[1] * b[1]
-  
+
   # -a
   #
   # @param [2-vector] a Vector to negate.
@@ -102,14 +102,14 @@ class Heron.Vector
     a[0] *= -1
     a[1] *= -1
     a
-  
+
   # Length of v
   #
   # @param [2-vector] v Vector to calculate length of.
   # @return [float] Length of v.
   @length2: ( v ) ->
     Math.sqrt( Heron.Vector.dot2( v, v ) )
-  
+
   # Normalize a.
   #
   # a will have length 1 afeter this completes.
@@ -121,7 +121,7 @@ class Heron.Vector
     a[0] /= n
     a[1] /= n
     a
-  
+
   # String representation of v.
   #
   # @param [2-vector] v Vector to represent.
@@ -138,4 +138,4 @@ class Heron.Vector
     a[0] = a[1]
     a[1] = -t
     a
-    
+

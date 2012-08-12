@@ -4,7 +4,7 @@ V = require( "../vector.js" ).Heron.Vector
 assert_float = ( a, b ) ->
 	delta = Math.abs( a - b )
 	assert.isTrue( delta < 0.001, "expected difference to be small but was: #{delta}")
-	
+
 describe 'Heron.Geometry', ->
 
 	describe 'vec2', ->
@@ -35,7 +35,7 @@ describe 'Heron.Geometry', ->
 		it 'should be true for the same object', ->
 			assert.isTrue( V.equal2( a, a ) )
 		it 'should be true for different but identical vectors', ->
-			assert.isTrue( V.equal2( a, V.dup2( a ) ) ) 
+			assert.isTrue( V.equal2( a, V.dup2( a ) ) )
 
 	describe 'set2', ->
 		a = V.vec2( 1, 2 )
@@ -58,7 +58,7 @@ describe 'Heron.Geometry', ->
 			assert.equal( b[1], 10 )
 		it 'should return the first argument', ->
 			assert.equal( a, c )
-			
+
 	describe 'sub2', ->
 		a = V.vec2( 1, 2 )
 		b = V.vec2( 8, 10 )
@@ -71,7 +71,7 @@ describe 'Heron.Geometry', ->
 			assert.equal( b[1], 10 )
 		it 'should return the first argument', ->
 			assert.equal( a, c )
-			
+
 	describe 'dot2', ->
 		it 'should calculate the dot product', ->
 			assert.equal( V.dot2( V.vec2( 1, 2 ), V.vec2( 3, 4 ) ), 11 )
@@ -103,7 +103,7 @@ describe 'Heron.Geometry', ->
 	describe "to_s2", ->
 		it 'should turn a vector into a string', ->
 			assert.equal( V.to_s2( V.vec2( 1, 2 ) ), "(1, 2)")
-			
+
 	describe "normal2", ->
 		a = V.vec2( 1, 2 )
 		b = V.normal2( a )
