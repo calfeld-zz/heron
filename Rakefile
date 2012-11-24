@@ -4,15 +4,16 @@ EXTERNALS = [
   [ "http://ajax.googleapis.com/ajax/libs/prototype/1.7.1.0/prototype.js", "prototype.js"]
 ]
 EXTERNAL_DIR = "external"
+DOC_DIR      = "doc"
 
-task :default => [:fetch_external]
+task :default => [:fetch_external, :doc]
 
 task :fetch_external do
   require 'net/http'
   require 'fileutils'
 
   FileUtils.mkdir_p(EXTERNAL_DIR)
-  
+
   rake_mtime = File.mtime( __FILE__ )
   EXTERNALS.each do |uri, short|
     uri = URI( uri )
@@ -34,4 +35,14 @@ task :fetch_external do
       FileUtils.ln( File.expand_path( long_path ), short_path )
     end
   end
+end
+
+task :doc do
+  require 'fileutils'
+
+  codo_dir = File.join(DOC_DIR,  'codo')
+  rdoc_dir = File.join(DOC_DIR,  'rdoc')
+  FileUtils.mkdir_p(DOC_DIR)
+  sh "codo -v -o #{codo_dir}"
+  sh "rdoc -U -o #{rdoc_dir}"
 end
