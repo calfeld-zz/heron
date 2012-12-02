@@ -1,6 +1,6 @@
 EXTERNALS = [
   [ "http://coffeescript.org/extras/coffee-script.js", "coffee-script.js" ],
-  [ "http://www.kineticjs.com/download/kinetic-v4.0.1.min.js", "kinetic.js" ],
+  [ "http://kineticjs.com/download/v4.1.2/kinetic-v4.1.2.js", "kinetic.js" ],
   [ "http://ajax.googleapis.com/ajax/libs/prototype/1.7.1.0/prototype.js", "prototype.js"]
 ]
 EXTERNAL_DIR = "external"
