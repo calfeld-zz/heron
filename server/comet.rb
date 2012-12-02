@@ -76,32 +76,39 @@ module Heron
 
     public
 
-    # Connect handler.
+    # @return [Proc] Connect handler.
     attr_accessor :on_connect
-    # Disconnect handler.
+    # @return [Proc] Disconnect handler.
     attr_accessor :on_disconnect
-    # Client timeout handler.
+    # @return [FixNum] Client timeout handler.
     attr_accessor :client_timeout
-    # Receive timeout handler.
+    # @return [FixNum] Receive timeout handler.
     attr_accessor :receive_timeout
 
     include Enumerable
 
     # Turn on debugging.
+    #
+    # @param [IO] to Where to write debug info.
+    # @return [self] self
     def enable_debug(to = STDOUT)
       @@debug = to
       @@debug_last = Time.now.to_f
       @@debug_start = @@debug_last
       hcd{"Debugging Enabled"}
+      self
     end
 
-    # All arguments are :key => :value format.
+    # Constructor.
     #
-    # [:on_connect]      Proc to call with client_id on connect.
-    # [:on_disconnect]   Proc to call with client_id on disconnect.
-    # [:client_timeout]  Seconds before implicit disconnect of client.
-    # [:receive_timeout] Timeout for #receive.
-    #
+    # @param [Hash] args Arguments.
+    # @option args [Proc] :on_connect Proc to call with client_id on
+    #   connect.
+    # @option args [Proc] :on_disconnect Proc to call with client_id on
+    #   disconnect.
+    # @option args [FixNum] :client_timeout Seconds before implicit disconnect
+    #   of client.
+    # @option args [FixNum] :receive_timeout Timeout for {#receive}.
     def initialize( args = {} )
       bad = args.keys.to_set - [
         :on_connect, :on_disconnect, :client_timeout, :receive_timeout
@@ -123,11 +130,13 @@ module Heron
     # exception if no such client.
     #
     # It is possible to have multiple receivers, but probably undesired.
-    # A call to #receive when another call is ongoing will be delayed until
+    # A call to {#receive} when another call is ongoing will be delayed until
     # the original call completes.  As such, it is quite possible for a call
     # to block for a while and then raise an exception because the client has
     # disconnected.
     #
+    # @param [String] client_id Client ID.
+    # @return [String] message or nil
     def receive( client_id )
       hcd{"#{client_id}:receive"}
 
@@ -162,6 +171,9 @@ module Heron
     end
 
     # Iterate through client ids.
+    #
+    # @yield [id] Yields each client id if passed proc.
+    # @return [Array<String>] Array of IDs.
     def each
       @clients_lock.synchronize do
         if block_given?
@@ -173,9 +185,12 @@ module Heron
     end
 
     # Queue +message+ for +client_id+.  Will raise an exception if +client_id+
-    # is not valid.  Unlike, #receive, it is perfectly acceptable to have
+    # is not valid.  Unlike, {#receive}, it is perfectly acceptable to have
     # multiple threads queuing messages.
     #
+    # @param [String] client_id Client to queue message for.
+    # @param [String] message Message to queue.
+    # @return [self] self
     def queue( client_id, message )
       hcd{"#{client_id}:queue:#{message}"}
       info = @clients[ client_id ]
@@ -184,10 +199,12 @@ module Heron
       info.queue << message
 
       hcd{"#{client_id}:queue:finished"}
-      nil
+      self
     end
 
     # True iff client_id is a client.
+    #
+    # @param [String] client_id String to check if client id.
     def client?( client_id )
       @clients_lock.synchronize do
         @clients[ client_id ] != nil
@@ -198,6 +215,8 @@ module Heron
     # will simply update the heartbeat timestamp.  This behavior has been
     # much debated and could change in the future.
     #
+    # @param [String] client_id Client ID to connect.
+    # @return [self] self
     def connect( client_id )
       hcd{"#{client_id}:connect"}
       @clients_lock.synchronize do
@@ -229,13 +248,15 @@ module Heron
       end
 
       @on_connect.( client_id )
-      nil
+      self
     end
 
     # Disconnects client +client_id+.  Has no effect if +client_id+ is not
     # valid.  This behavior has been much debated and could change in the
     # future.
     #
+    # @param [String] client_id Client id to disconnect.
+    # @return [self] self
     def disconnect( client_id )
       hcd{"#{client_id}:disconnect"}
 
@@ -249,7 +270,6 @@ module Heron
       end
 
       @on_disconnect.( client_id )
-      nil
     end
 
   end

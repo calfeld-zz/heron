@@ -41,8 +41,8 @@ task :doc do
   require 'fileutils'
 
   codo_dir = File.join(DOC_DIR,  'codo')
-  rdoc_dir = File.join(DOC_DIR,  'rdoc')
+  yard_dir = File.join(DOC_DIR,  'yard')
   FileUtils.mkdir_p(DOC_DIR)
   sh "codo -v -o #{codo_dir}"
-  sh "rdoc -U -o #{rdoc_dir}"
+  sh "yard --verbose -o #{yard_dir} '**/*.rb'"
 end
