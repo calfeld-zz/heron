@@ -13,10 +13,14 @@ c_generate_id_table = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234
 # @copyright 2012 Christopher Alfeld
 class Heron.Util
 
+  # Generate random number.
+  #
   # @return [integer] Random number in [0, n)
   @rand = ( n ) ->
     Math.floor( Math.random() * n )
 
+  # Generate random identifier.
+  #
   # @param [integer] n Length of identifier.
   # @return [string] Random string of length n.
   @generate_id = ( n = 8 ) ->
