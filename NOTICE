@@ -1,0 +1,10 @@
+Heron
+Copyright 2010-2012 Christopher Alfeld
+
+This product includes software developed by Christopher Alfeld
+<calfeld@calfeld.net> (http://www.calfeld.net).
+
+Common use of this prouct involves placing external dependencies in the
+'external' directory.  Such dependencies are not part of Heron and this notice
+does not apply to them.  This product should only be distributed
+without the external directory.
