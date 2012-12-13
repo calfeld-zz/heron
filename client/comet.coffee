@@ -21,11 +21,9 @@ c_max_reconnect_retry = 1
 reconnect = ->
   receive.call( this )
   # This will flush out any already active receive on the server.
-  new Ajax.Request(
+  jQuery.get(
     @__.path + "/flush"
-    method: 'get'
-    parameters:
-      client_id: @__.client_id
+    client_id: @__.client_id
   )
   null
 
@@ -33,31 +31,29 @@ receive = ->
   return null if ! @__.connected
 
   failure = =>
-    @__.connected = false
-    $(document).fire( "Heron.Comet:lost", this )
+    return if ! @__.connected
+    if @__.reconnect_retry < c_max_reconnect_retry
+      @__.verbose( "disconnected; trying to reconnect." )
+      ++@__.reconnect_retry
+      setTimeout(
+        => reconnect.call( this ),
+        0
+      )
+    else
+      @__.verbose( "disconnected; retry count exceeded." )
+      @__.connected = false
+      @__.current_receive = null
+      jQuery(document).trigger( "Heron.Comet:lost", this )
 
-  new Ajax.Request(
+  @__.current_receive = jQuery.get(
     @__.path + "/receive"
-    method: 'get'
-    parameters:
-      client_id: @__.client_id,
-    onSuccess: ( transport ) =>
-      # This check allows us to deal with reloads and window closes
-      # gracefully.
+    client_id: @__.client_id,
+    ( data, textStatus, transport ) =>
       return if ! @__.connected
 
       if transport.status != 200
-        if @__.reconnect_retry < c_max_reconnect_retry
-          verbose( "disconnected; trying to reconnect." )
-          ++@__.reconnect_retry
-          setTimeout(
-            => reconnect.call( this ),
-            0
-          )
-        else
-          verbose( "disconnected; retry count exceeded." )
-          failure()
-      else
+        failure()
+      else if @__.connected
         if @__.reconnect_retry > 0
           @__.verbose( "reconnected." )
           @__.reconnect_retry = 0
@@ -68,11 +64,7 @@ receive = ->
           => receive.call( this ),
           0
         )
-    onFailure: ( e ) ->
-      failure( e )
-    onException: ( e, text ) =>
-      @__.on_exception( e, text, this )
-  )
+  ).fail( failure )
   null
 
 # Client-side Comet support.
@@ -85,8 +77,8 @@ receive = ->
 # There are a number of additional options and hnalders available.  See the
 # constructor for details.
 #
-# The following events are fired, in all cases, memo will be Heron.Comet
-# instance.
+# The following events are fired on document.  In all cases, memo will be
+# Heron.Comet instance.
 #
 # - `Heron.Comet:connected`    Fired on connection.
 # - `Heron.Comet:disconnected` Fired on disconnect.
@@ -122,10 +114,6 @@ class Heron.Comet
       verbose:         ( s ) => @__.on_verbose( "comet: #{s}", this )
       reconnect_retry: 0
 
-    # Watch for unloads to avoid loss being called when the web page is
-    # left.
-    Event.observe( window, "beforeunload", @disconnect )
-
     @__.verbose( "initialized" )
 
   # Client ID reader.
@@ -144,16 +132,14 @@ class Heron.Comet
   #
   # @return [object] this
   connect: ->
-    new Ajax.Request(
-      @__.path + "/connect"
-      method: 'get'
-      parameters:
-        client_id: @__.client_id
-      onSuccess: =>
+    jQuery.get(
+      @__.path + "/connect",
+      client_id: @__.client_id,
+      =>
         @__.connected = true
         receive.call( this )
         @__.verbose( "connected" )
-        $(document).fire( "Heron.Comet:connected", this )
+        jQuery(document).trigger( "Heron.Comet:connected", this )
     )
     this
 
@@ -164,14 +150,14 @@ class Heron.Comet
   # @return [object] this
   disconnect: ->
     if @__.connected
-      new Ajax.Request(
+      @__.connected = false
+      @__.current_receive?.abort()
+      jQuery.get(
         @__.path + "/disconnect"
-        method: 'get'
-        parameters:
-          client_id: @__.client_id
-        onSuccess: =>
-          @__.connected = false
-          $(document).fire( "Heron.Comet:disconnected", this )
+        client_id: @__.client_id,
+        =>
+          @__.verbose("disconnected")
+          jQuery(document).trigger( "Heron.Comet:disconnected", this )
       )
     this
 

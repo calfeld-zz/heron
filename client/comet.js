@@ -8,11 +8,8 @@
 
   reconnect = function() {
     receive.call(this);
-    new Ajax.Request(this.__.path + "/flush", {
-      method: 'get',
-      parameters: {
-        client_id: this.__.client_id
-      }
+    jQuery.get(this.__.path + "/flush", {
+      client_id: this.__.client_id
     });
     return null;
   };
@@ -24,50 +21,44 @@
       return null;
     }
     failure = function() {
-      _this.__.connected = false;
-      return $(document).fire("Heron.Comet:lost", _this);
-    };
-    new Ajax.Request(this.__.path + "/receive", {
-      method: 'get',
-      parameters: {
-        client_id: this.__.client_id
-      },
-      onSuccess: function(transport) {
-        if (!_this.__.connected) {
-          return;
-        }
-        if (transport.status !== 200) {
-          if (_this.__.reconnect_retry < c_max_reconnect_retry) {
-            verbose("disconnected; trying to reconnect.");
-            ++_this.__.reconnect_retry;
-            return setTimeout(function() {
-              return reconnect.call(_this);
-            }, 0);
-          } else {
-            verbose("disconnected; retry count exceeded.");
-            return failure();
-          }
-        } else {
-          if (_this.__.reconnect_retry > 0) {
-            _this.__.verbose("reconnected.");
-            _this.__.reconnect_retry = 0;
-          }
-          if (transport.responseText !== "") {
-            _this.__.verbose(transport.responseText);
-            _this.__.on_message(transport.responseText, _this);
-          }
-          return setTimeout(function() {
-            return receive.call(_this);
-          }, 0);
-        }
-      },
-      onFailure: function(e) {
-        return failure(e);
-      },
-      onException: function(e, text) {
-        return _this.__.on_exception(e, text, _this);
+      if (!_this.__.connected) {
+        return;
       }
-    });
+      if (_this.__.reconnect_retry < c_max_reconnect_retry) {
+        _this.__.verbose("disconnected; trying to reconnect.");
+        ++_this.__.reconnect_retry;
+        return setTimeout(function() {
+          return reconnect.call(_this);
+        }, 0);
+      } else {
+        _this.__.verbose("disconnected; retry count exceeded.");
+        _this.__.connected = false;
+        _this.__.current_receive = null;
+        return jQuery(document).trigger("Heron.Comet:lost", _this);
+      }
+    };
+    this.__.current_receive = jQuery.get(this.__.path + "/receive", {
+      client_id: this.__.client_id
+    }, function(data, textStatus, transport) {
+      if (!_this.__.connected) {
+        return;
+      }
+      if (transport.status !== 200) {
+        return failure();
+      } else if (_this.__.connected) {
+        if (_this.__.reconnect_retry > 0) {
+          _this.__.verbose("reconnected.");
+          _this.__.reconnect_retry = 0;
+        }
+        if (transport.responseText !== "") {
+          _this.__.verbose(transport.responseText);
+          _this.__.on_message(transport.responseText, _this);
+        }
+        return setTimeout(function() {
+          return receive.call(_this);
+        }, 0);
+      }
+    }).fail(failure);
     return null;
   };
 
@@ -90,7 +81,6 @@
         },
         reconnect_retry: 0
       };
-      Event.observe(window, "beforeunload", this.disconnect);
       this.__.verbose("initialized");
     }
 
@@ -104,33 +94,30 @@
 
     Comet.prototype.connect = function() {
       var _this = this;
-      new Ajax.Request(this.__.path + "/connect", {
-        method: 'get',
-        parameters: {
-          client_id: this.__.client_id
-        },
-        onSuccess: function() {
-          _this.__.connected = true;
-          receive.call(_this);
-          _this.__.verbose("connected");
-          return $(document).fire("Heron.Comet:connected", _this);
-        }
+      jQuery.get(this.__.path + "/connect", {
+        client_id: this.__.client_id
+      }, function() {
+        _this.__.connected = true;
+        receive.call(_this);
+        _this.__.verbose("connected");
+        return jQuery(document).trigger("Heron.Comet:connected", _this);
       });
       return this;
     };
 
     Comet.prototype.disconnect = function() {
-      var _this = this;
+      var _ref1,
+        _this = this;
       if (this.__.connected) {
-        new Ajax.Request(this.__.path + "/disconnect", {
-          method: 'get',
-          parameters: {
-            client_id: this.__.client_id
-          },
-          onSuccess: function() {
-            _this.__.connected = false;
-            return $(document).fire("Heron.Comet:disconnected", _this);
-          }
+        this.__.connected = false;
+        if ((_ref1 = this.__.current_receive) != null) {
+          _ref1.abort();
+        }
+        jQuery.get(this.__.path + "/disconnect", {
+          client_id: this.__.client_id
+        }, function() {
+          _this.__.verbose("disconnected");
+          return jQuery(document).trigger("Heron.Comet:disconnected", _this);
         });
       }
       return this;

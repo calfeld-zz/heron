@@ -1,7 +1,7 @@
 <html>
 <head>
   <script type='application/javascript' src='/external/kinetic.js'></script>
-  <script type='application/javascript' src='/external/prototype.js'></script>
+  <script type='application/javascript' src='/external/jquery.js'></script>
   <script type='application/javascript' src='/external/coffee-script.js'></script>
   <script type='application/javascript' src='/client/util.js'></script>
   <script type='application/javascript' src='/client/comet.js'></script>
@@ -24,21 +24,23 @@
       )
 
       circle.on('dragmove', (e) ->
-        new Ajax.Request(
+        jQuery.post(
           '/comet_example',
-          method: "post"
-          parameters:
-            client_id: comet.client_id()
-            message:   Object.toJSON([x:e.offsetX, y:e.offsetY])
+          client_id: comet.client_id()
+          message:   JSON.stringify([x:e.offsetX, y:e.offsetY])
         )
       )
 
       layer.add(circle)
       stage.add(layer)
 
-      comet = new Heron.Comet(
+      $(document).on('Heron.Comet:lost', -> alert("Comet Lost"))
+      $(document).on('Heron.Comet:connected', -> alert("Comet Connected"))
+      $(document).on('Heron.Comet:disconnected', -> alert("Comet Disconnect"))
+
+      @comet = new Heron.Comet(
         on_message: (message) ->
-          obj = message.evalJSON()[0]
+          obj = jQuery.parseJSON(message)[0]
 
           circle.setX(obj.x)
           circle.setY(obj.y)
@@ -46,7 +48,7 @@
         on_verbose: ( text ) ->
           console.info( text )
       )
-      comet.connect()
+      @comet.connect()
   </script>
 </head>
 
