@@ -2,7 +2,6 @@
 
 require 'rubygems'
 require 'sinatra'
-require 'thin'
 
 $:.unshift(File.expand_path(File.join(File.dirname(__FILE__), '..')))
 require 'server/sinatra_comet'
@@ -13,8 +12,9 @@ class CometServer < Sinatra::Base
   set :static, true
   set :threaded, true
   set :run, true
-
+  set :dump_errors, true
   enable :logging
+  use Rack::CommonLogger
 
   # Defines
   # /comet/connect
