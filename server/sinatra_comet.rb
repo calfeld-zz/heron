@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Examplish Sintra support for Heron::Comet.
+# Examplish Sinatra support for Heron::Comet.
 #
 # This files defines the Heron::SinatraComet that can included into a
 # Sinatra::Base subclass to define a Heron::Comet controller.  For simple
