@@ -22,44 +22,44 @@ reconnect = ->
   receive.call( this )
   # This will flush out any already active receive on the server.
   jQuery.get(
-    @__.path + "/flush"
-    client_id: @__.client_id
+    @_.path + "/flush"
+    client_id: @_.client_id
   )
   null
 
 receive = ->
-  return null if ! @__.connected
+  return null if ! @_.connected
 
   failure = =>
-    return if ! @__.connected
-    if @__.reconnect_retry < c_max_reconnect_retry
-      @__.verbose( "disconnected; trying to reconnect." )
-      ++@__.reconnect_retry
+    return if ! @_.connected
+    if @_.reconnect_retry < c_max_reconnect_retry
+      @_.verbose( "disconnected; trying to reconnect." )
+      ++@_.reconnect_retry
       setTimeout(
         => reconnect.call( this ),
         0
       )
     else
-      @__.verbose( "disconnected; retry count exceeded." )
-      @__.connected = false
-      @__.current_receive = null
+      @_.verbose( "disconnected; retry count exceeded." )
+      @_.connected = false
+      @_.current_receive = null
       jQuery(document).trigger( "Heron.Comet:lost", this )
 
-  @__.current_receive = jQuery.get(
-    @__.path + "/receive"
-    client_id: @__.client_id,
+  @_.current_receive = jQuery.get(
+    @_.path + "/receive"
+    client_id: @_.client_id,
     ( data, textStatus, transport ) =>
-      return if ! @__.connected
+      return if ! @_.connected
 
       if transport.status != 200
         failure()
-      else if @__.connected
-        if @__.reconnect_retry > 0
-          @__.verbose( "reconnected." )
-          @__.reconnect_retry = 0
+      else if @_.connected
+        if @_.reconnect_retry > 0
+          @_.verbose( "reconnected." )
+          @_.reconnect_retry = 0
         if transport.responseText != ""
-          @__.verbose( transport.responseText )
-          @__.on_message( transport.responseText, this )
+          @_.verbose( transport.responseText )
+          @_.on_message( transport.responseText, this )
         setTimeout(
           => receive.call( this ),
           0
@@ -103,42 +103,42 @@ class Heron.Comet
   # @option config [string]   client_id    Client ID.  Defaults to
   #   {Heron.Util.generate_id}
   constructor: ( config ) ->
-    @__ =
+    @_ =
       path:            config.path         ? "/comet"
       on_message:      config.on_message   ? ->
       on_verbose:      config.on_verbose   ? ->
       on_exception:    config.on_exception ? ( e, text, comet ) =>
-        @__.verbose( "Exception: #{text}" )
+        @_.verbose( "Exception: #{text}" )
       client_id:       config.client_id    ? Heron.Util.generate_id()
       connected:       false
-      verbose:         ( s ) => @__.on_verbose( "comet: #{s}", this )
+      verbose:         ( s ) => @_.on_verbose( "comet: #{s}", this )
       reconnect_retry: 0
 
-    @__.verbose( "initialized" )
+    @_.verbose( "initialized" )
 
   # Client ID reader.
   #
   # @return [string] Client ID.
   client_id: ->
-    @__.client_id
+    @_.client_id
 
   # True iff connected to server.
   #
   # @return [bool] True iff connected to server.
   connected: ->
-    @__.connected
+    @_.connected
 
   # Connect to server.
   #
   # @return [object] this
   connect: ->
     jQuery.get(
-      @__.path + "/connect",
-      client_id: @__.client_id,
+      @_.path + "/connect",
+      client_id: @_.client_id,
       =>
-        @__.connected = true
+        @_.connected = true
         receive.call( this )
-        @__.verbose( "connected" )
+        @_.verbose( "connected" )
         jQuery(document).trigger( "Heron.Comet:connected", this )
     )
     this
@@ -149,14 +149,14 @@ class Heron.Comet
   #
   # @return [object] this
   disconnect: ->
-    if @__.connected
-      @__.connected = false
-      @__.current_receive?.abort()
+    if @_.connected
+      @_.connected = false
+      @_.current_receive?.abort()
       jQuery.get(
-        @__.path + "/disconnect"
-        client_id: @__.client_id,
+        @_.path + "/disconnect"
+        client_id: @_.client_id,
         =>
-          @__.verbose("disconnected")
+          @_.verbose("disconnected")
           jQuery(document).trigger( "Heron.Comet:disconnected", this )
       )
     this
