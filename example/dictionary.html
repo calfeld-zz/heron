@@ -1,0 +1,77 @@
+<html>
+<head>
+  <script type='application/javascript' src='/external/kinetic.js'></script>
+  <script type='application/javascript' src='/external/jquery.js'></script>
+  <script type='application/javascript' src='/external/coffee-script.js'></script>
+  <script type='application/javascript' src='/client/util.js'></script>
+  <script type='application/javascript' src='/client/comet.js'></script>
+  <script type='application/javascript' src='/client/dictionary.js'></script>
+  <script type='text/coffeescript'>
+    @on_load = ->
+      stage = new Kinetic.Stage(
+        container: "stage"
+        width:     400
+        height:    400
+      )
+      layer = new Kinetic.Layer()
+      circle = new Kinetic.Circle(
+        x:          200
+        y:          200
+        radius:     20
+        fill:       'red'
+        stroke:     'black'
+        strokeWidth: 2
+        draggable: true
+      )
+
+      circle.on('dragmove',
+        (e) ->
+          dictionary.update(
+            'example_dictionary', 'loc',
+            x: e.offsetX
+            y: e.offsetY
+          )
+      )
+
+      layer.add(circle)
+      stage.add(layer)
+
+      @receiver =
+        create: ( domain, key, value ) ->
+          @update( domain, key, value )
+        update: ( domain, key, value ) ->
+          console.debug("got here", key, value)
+          if key == 'loc'
+            circle.setX(value.x)
+            circle.setY(value.y)
+            stage.draw()
+        delete: ( domain, key ) ->
+          # nop
+
+      client_id = Heron.Util.generate_id()
+
+      $(document).on('Heron.Dictionary:connected', -> alert("Dictionary Connected"))
+
+      @dictionary = new Heron.Dictionary(
+        receiver:  @receiver
+        client_id: client_id
+        session_id: 'example_dictionary'
+        debug:     true
+      )
+      @comet = new Heron.Comet(
+        client_id:  client_id
+        on_message: ( msg ) =>
+          @dictionary.receive(msg)
+        on_verbose: ( text ) ->
+          console.info( text )
+      )
+      @comet.connect()
+  </script>
+</head>
+
+<body onload="on_load()">
+  <div id="stage"></div>
+  <p>To use run comet_server.rb and open <a href=http://127.0.0.1:4567>http://127.0.0.1:4567</a> in two or more windows.  The red ball can be moved around on any window and that movement will be reflected in the other windows.  Look at the console for additional details.</p>
+</body>
+
+</html>
