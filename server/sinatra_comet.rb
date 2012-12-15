@@ -55,7 +55,7 @@ module Heron
 # - get /comet/receive
 # - get /comet/flush
 #
-# See also Heron::Comet
+# @see Comet
 #
 module SinatraComet
   # Add class commands, instantiate Heron::Comet, setup routes.
