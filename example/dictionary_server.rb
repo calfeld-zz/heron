@@ -9,9 +9,11 @@ require 'server/sinatra_dictionary'
 
 # Initialize Dictionary Database
 DICTIONARY_DB = '/tmp/heron_dictionary.db'
-dictionary = ::Heron::Dictionary.new(DICTIONARY_DB)
-dictionary.add_domain('example_dictionary', 'example_dictionary')
-dictionary.create_key('example_dictionary', 'loc', '{"x":200, "y":200}')
+db = ::Heron::DictionaryDB.new(DICTIONARY_DB)
+db.add_domain('example_dictionary', 'example_dictionary')
+db.create_key('example_dictionary', 'loc', '{"x":200, "y":200}')
+
+Thread.abort_on_exception = true
 
 class DictionaryServer < Sinatra::Base
   # Not a good idea in production.
@@ -30,32 +32,26 @@ class DictionaryServer < Sinatra::Base
   # /comet/flush
   include ::Heron::SinatraComet
 
+  DICTIONARY_DB_PATH = DICTIONARY_DB
   # Defines
   # /dictionary/connect
   # /dictionary/disconnect
   # /dictionary/messages
   include ::Heron::SinatraDictionary
 
-  # Trace dictionary operations
-  def dictionary_trace( s )
-    puts "DICT #{s}"
-  end
-
-  # Location of database
-  def dictionary_path
-    DICTIONARY_DB
-  end
+  dictionary.on_verbose = -> s { puts "DICT #{s}" }
+  dictionary.on_error   = -> s { puts "DICT ERROR #{s}" }
 
   comet.enable_debug
 
   comet.on_connect = -> client_id do
-    puts "CONNECT #{client_id}"
+    puts "COMET CONNECT #{client_id}"
   end
 
   comet.on_disconnect = -> client_id do
-    puts "DISCONNECT #{client_id}"
+    puts "COMET DISCONNECT #{client_id}"
     # Important
-    dictionary_disconnect( client_id )
+    dictionary.disconnect( client_id )
   end
 
   get '/' do

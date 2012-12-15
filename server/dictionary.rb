@@ -27,6 +27,210 @@ require 'rubygems'
 require 'sqlite3'
 
 module Heron
+  # Dictionary Related Errors
+  class DictionaryError < RuntimeError
+  end
+
+  # Implements Heron.Dictionary logic.
+  #
+  # Must be attached to a webserver via a dictionary controller such as
+  # {Heron.SinatraDictionary}.
+  #
+  class Dictionary
+    # @return [String] Path to SQLite database.
+    attr_reader :db_path
+    # @return [Proc] Proc to call with verbose message.
+    attr_accessor :on_verbose
+    # @return [Proc] Proc to call with error message.
+    attr_accessor :on_error
+    # @return [Proc] Proc to call with client_id and session ID on connect.
+    attr_accessor :on_connect
+    # @return [Proc] Proc to call with client_id on connect.
+    attr_accessor :on_disconnect
+
+    # Constructor.
+    #
+    # @param [Hash] args Arguments.
+    # @option args [Proc] :on_connect Proc to call with client_id and
+    #   session_id on connect.  Defaults to nop.
+    # @option args [Proc] :on_disconnect Proc to call with client_id on
+    #   disconnect.  Defaults to nop.
+    # @option args [Proc] :on_verbose Proc to call with message on verbose
+    #   message.  Defauls to nop.
+    # @option args [Proc] :on_error Proc to call with error on error message.
+    #   Defaults to writing to stderr.
+    # @option args [String] :db_path Path to database file.  If file
+    #   does not exist, new database will be initialized.  Required.
+    # @option args [Proc] :comet Proc to return Heron::Comet instance to use.
+    #   Required.
+    def initialize( args = {} )
+      bad = args.keys.to_set - [
+        :on_verbose, :on_error, :db_path, :comet
+      ].to_set
+      raise DictionaryError.new("Invalid argument(s): #{bad.to_a}") if ! bad.empty?
+
+      required = -> s { raise DictionaryError.new( "Required: #{s}" ) }
+      @on_verbose    = args[ :on_verbose ]    || -> x {}
+      @on_connect    = args[ :on_connect ]    || -> x, y {}
+      @on_disconnect = args[ :on_disconnect ] || -> x {}
+      @on_error      = args[ :on_error ]      || -> x {STDERR.puts "Dictionary Error: #{x}"}
+      @db_path       = args[ :db_path ]       || required.( 'db_path' )
+      @comet         = args[ :comet ]         || required.( 'comet'   )
+    end
+
+    # Send message to dictionary clients.
+    #
+    # @param [Array<String>] to   Array of client ids.
+    # @param [String]        json Message to send.
+    # @param [HeronDatabase] db   Database conenction to use; default to new.
+    # @return [undefined] undefined
+    def send_messages( to, json, db = database )
+      bad_clients = []
+      to.each do |client_id|
+        begin
+          comet.queue( client_id, json )
+        rescue Heron::CometError => e
+          error "Could not send to #{client_id}.  " +
+            "Perhaps disconnected: #{e.to_s}"
+          bad_clients << client_id
+        end
+      end
+
+      if ! bad_clients.empty?
+        verbose "Cleaning up #{bad_clients.size} bad clients."
+        db.transaction do
+          bad_clients.each do |client_id|
+            disconnect( client_id.to_s, db )
+          end
+        end
+      end
+    end
+
+    # Handle messages from client.
+    #
+    # @param [String] client_id Client ID of sender.
+    # @param [String] messages Messages in JSON.
+    # @return [undefined] undefined
+    def messages( client_id, messages )
+      handle_messages_json( client_id, messages )
+
+      db = database
+      others = db.other_clients_in_session_as( client_id )
+      send_messages( others, messages, db )
+    end
+
+    # Connect client to session.
+    #
+    # @param [String] client_id ID of connecting client.
+    # @param [String] session_id ID of session to connect to.
+    # @return [undefined] undefined
+    def connect( client_id, session_id )
+      verbose( "CONNECT #{client_id} #{session_id}" )
+      @on_connect.( client_id, session_id )
+
+      db = database
+      db.transaction do
+        db.connect_client( client_id, session_id )
+
+        messages =
+          db.keys_for_client( client_id ).collect do |domain,key,value|
+            {
+              command: 'create',
+              domain:  domain,
+              key:     key,
+              value:   value
+            }
+          end
+        messages << {
+          command: 'create',
+          domain:  '_',
+          key:     'synced',
+          value:   'true'.to_json
+        }
+
+        send_messages( [client_id], messages.to_json, db )
+      end
+    end
+
+    # Disconnect client.
+    #
+    # This should be called by the on_disconnect {Heron::Comet} handler.
+    #
+    # @param [String] client_id ID of disconnecting client.
+    # @param [DictionaryDB] db Database connection to use; default to new.
+    # @return [undefined] undefined
+    def disconnect( client_id, db = database )
+      verbose( "DISCONNECT #{client_id}" )
+      @on_disconnect.( client_id )
+
+      database.disconnect_client( client_id.to_s )
+    end
+
+    private
+
+    # @return [Heron::Comet] Comet support.
+    def comet
+      @comet.()
+    end
+
+    # Emit verbose message.
+    #
+    # @param [String] s Message.
+    # @return [undefined] undefined
+    def verbose( s )
+      @on_verbose.( s )
+    end
+
+    # Emit error message.
+    #
+    # @param [String] s Message.
+    # @return [undefined] undefined
+    def error( s )
+      @on_error.( s )
+    end
+
+    # Access database.
+    #
+    # @return [DictionaryDB] Database.
+    def database
+      ::Heron::DictionaryDB.new( @db_path )
+    end
+
+    # Handle messages for a domain.
+    #
+    # @param [String] domain message are for.
+    # @param [String] messages_json Messages in JSON.
+    # @return [undefined] undefined
+    def handle_messages_json( domain, messages_json )
+      db = database
+      JSON.parse( messages_json ).each do |message|
+        command = message[ 'command' ]
+        raise "Missing command." if ! command
+        domain = message[ 'domain' ]
+        raise "Missing domain." if ! domain
+        key = message[ 'key' ]
+        raise "Missing key." if ! key
+
+        value = message[ 'value' ] # may be nil
+
+        case command
+        when 'create'
+          raise "Missing value." if ! value
+          verbose( "C #{domain}.#{key} = #{value}" )
+          db.create_key( domain, key.to_s, value )
+        when 'update'
+          raise "Missing value." if ! value
+          verbose( "U #{domain}.#{key} = #{value}" )
+          db.update_key( value, domain, key.to_s )
+        when 'delete'
+          verbose( "D #{domain}.#{key}" )
+          db.delete_key( domain, key.to_s )
+        else
+          raise "Invalid command: #{message['command']}"
+        end
+      end
+    end
+  end
 
   # Implements underlying database for Heron.Dictionary.
   #
@@ -39,9 +243,6 @@ module Heron
   # controller such as SinatraDictionary.  In the future, this may be
   # rearranged.
   #
-  # @todo Extract non-Sinatra specific parts of SinatraDictionary into
-  #       Dictionary.
-  #
   # @!method clients_in_session( session_id )
   #   @param [String] session_id ID of session.
   #   @return [Array<String>] IDs of client in session.
@@ -51,9 +252,9 @@ module Heron
   #   @return [Array<String>] IDs of clients in same session as +client_id+.
   #
   # @!method create_key( domain, key, value )
-  #   @param [String] domain Domain of key.
-  #   @param [String] key    Name of key.
-  #   @param [String] value  Value of key.
+  #   @param [String] domain  Domain of key.
+  #   @param [String] key     Name of key.
+  #   @param [String] value   Value of key.
   #   @return [undefined] undefined
   #
   # @!method update_key( value, domain, key )
@@ -68,7 +269,7 @@ module Heron
   #   @return [undefined] undefined
   #
   # @!method all_key_values
-  #   @return [Array<String, String, String>] List of of all
+  #   @return [Array<String, String, String, String>] List of of all
   #     [domain, key, value]
   #
   # @!method all_domains
@@ -77,7 +278,7 @@ module Heron
   # @!method key_value( domain, key )
   #   @param [String] domain Domain of key.
   #   @param [String] key    Name of key.
-  #   @return [String] Value of key.
+  #   @return [Array<String>] value of key.
   #
   # @!method connect_client( client_id, session_id )
   #   @param [String] client_id  ID of client to connect.
@@ -90,11 +291,13 @@ module Heron
   #
   # @!method keys_in_domain( domain )
   #   @param [String] domain Domain to find keys of.
-  #   @return [Array<String, String>] All [key, value]s in domain.
+  #   @return [Array<String, String, String>] All [key, value]s in
+  #     domain.
   #
   # @!method keys_for_client( client_id )
   #   @param [String] client_id ID of client to find keys of.
-  #   @return [Array<String, String>] All [key, value]s for client.
+  #   @return [Array<String, String, String>] All [key, value]s for
+  #     client.
   #
   # @!method add_domain( session_id, domain )
   #   @param [String] session_id Session to add domain to.
@@ -109,7 +312,7 @@ module Heron
   # @!method sessions
   #   @return [Array<String, String>] All [session_id, domain] pairs.
   #
-  class Dictionary
+  class DictionaryDB
     protected
     # Add instance method +name+ corresponding to +query+.
     #
@@ -152,7 +355,7 @@ module Heron
     )
     prepare(
       "create_key",
-      "INSERT OR REPLACE INTO key_values ( domain, key, value ) VALUES ( ? , ? , ? )"
+      "INSERT OR REPLACE INTO key_values ( domain, key, value ) VALUES ( ?, ?, ?, ? )"
     )
     prepare(
       "update_key",
@@ -178,7 +381,7 @@ module Heron
     )
     prepare(
       "connect_client",
-      "INSERT OR REPLACE INTO clients ( id, session_id ) VALUES ( ? , ? )"
+      "INSERT OR REPLACE INTO clients ( id, session_id ) VALUES ( ?, ? )"
     )
     prepare(
       "disconnect_client",
@@ -262,7 +465,7 @@ module Heron
         )
         @db.execute(
           "CREATE TABLE IF NOT EXISTS key_values (
-            domain, key, value,
+            domain, key, value, 
             PRIMARY KEY (domain, key)
           )"
         )
