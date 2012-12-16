@@ -175,7 +175,7 @@ module Heron
         end
 
         data = info.queue.pop
-        hcd{"#{client_id}:receive:" + (data.nil? ? "timeout" : data)}
+        hcd{"#{client_id}:receive:" + (data.nil? ? "timeout" : data.inspect)}
         timeout_flag = true
       end
 
