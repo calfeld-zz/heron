@@ -45,12 +45,8 @@ module Heron
 # shared {Heron::Dictionary} instance.  This can be used to further configure
 # Dictionary.
 #
-# You should have your {Comet} disconnect handler, call
-# {Dictionary#disconnect}.
-#
 # Routes created by default (see above):
-# - post /dictionary/connect
-# - post /dictionary/disconnect
+# - post /dictionary/subscribe
 # - post /dictionary/messages
 #
 # @see Dictionary
@@ -73,28 +69,8 @@ module SinatraDictionary
 
     base.class_variable_set(:@@dictionary, Heron::Dictionary.new(
       db_path: db_path,
-      comet:   -> {base.send(:comet)}
+      send:    -> to, msg { base.send( :comet ).queue( to, msg ) }
     ))
-
-    base.post prefix + '/connect' do
-      client_id  = params[ 'client_id' ]
-      session_id = params[ 'session_id' ]
-
-      raise "Missing client_id." if ! client_id
-      raise "Missing session_id." if ! session_id
-
-      dictionary.connect( client_id, session_id )
-      200
-    end
-
-    base.post prefix + '/disconnect' do
-      client_id = params[ 'client_id' ]
-
-      raise "Missing client_id." if ! client_id
-
-      dictionary.disconnect( client_id )
-      200
-    end
 
     base.post prefix + '/messages' do
       client_id = params[ 'client_id' ]
@@ -104,6 +80,17 @@ module SinatraDictionary
       raise "Missing messages."  if ! messages
 
       dictionary.messages( client_id, messages )
+      200
+    end
+
+    base.post prefix + '/subscribe' do
+      client_id = params[ 'client_id' ]
+      domain    = params[ 'domain' ]
+
+      raise "Missing client_id." if ! client_id
+      raise "Missing domain."  if ! domain
+
+      dictionary.subscribe( client_id, domain )
       200
     end
   end

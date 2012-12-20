@@ -8,20 +8,16 @@ require 'server/sinatra_comet'
 require 'server/sinatra_dictionary'
 
 # Initialize Dictionary Database
-DICTIONARY_DB = '/tmp/heron_dictionary.db'
-db = ::Heron::DictionaryDB.new(DICTIONARY_DB)
-db.add_domain('example_dictionary', 'example_dictionary')
-db.create_key('example_dictionary', 'loc', '{"x":200, "y":200}')
+DICTIONARY_DB = '/tmp/heron_dictionary'
 
 Thread.abort_on_exception = true
-
 class DictionaryServer < Sinatra::Base
   # Not a good idea in production.
   set :public_folder, File.expand_path(File.join(File.dirname(__FILE__), '..'))
-  set :static, true
-  set :threaded, true
-  set :run, true
-  set :dump_errors, true
+  enable :static
+  enable :threaded
+  enable :run
+  enable :dump_errors
   enable :logging
   use Rack::CommonLogger
 
@@ -34,29 +30,26 @@ class DictionaryServer < Sinatra::Base
 
   DICTIONARY_DB_PATH = DICTIONARY_DB
   # Defines
-  # /dictionary/connect
-  # /dictionary/disconnect
+  # /dictionary/subscribe
   # /dictionary/messages
   include ::Heron::SinatraDictionary
 
-  dictionary.on_verbose = -> s { puts "DICT #{s}" }
-  dictionary.on_error   = -> s { puts "DICT ERROR #{s}" }
+  dictionary.on_verbose   = -> s     { puts "DICT #{s}"                   }
+  dictionary.on_error     = -> s     { puts "DICT ERROR #{s}"             }
+  dictionary.on_subscribe = -> id, s { puts "DICT SUBSCRIBE [#{id}] #{s}" }
+  dictionary.on_collision = -> s     { puts "DICT COLLISION #{s}"         }
+  dictionary.create('example_dictionary', 'loc', '{"x":200, "y":200}', 'initial')
 
   comet.enable_debug
 
-  comet.on_connect = -> client_id do
-    puts "COMET CONNECT #{client_id}"
-  end
-
-  comet.on_disconnect = -> client_id do
-    puts "COMET DISCONNECT #{client_id}"
-    # Important
-    dictionary.disconnect( client_id )
-  end
+  comet.on_connect    = -> client_id { puts "COMET CONNECT #{client_id}"    }
+  comet.on_disconnect = -> client_id { puts "COMET DISCONNECT #{client_id}" }
 
   get '/' do
     redirect '/example/dictionary.html'
   end
+
+  at_exit { dictionary.shutdown }
 
   run!
 end

@@ -21,10 +21,14 @@
 # controller, e.g., Heron::SinatraDictionary, and the client side library,
 # Heron.Dictionary.
 #
-# Author::    Christopher Alfeld (calfeld@calfeld.net)
+# See Heron.Dictionary in the client side documentation for details on
+# Dictionary.
+#
+# Author:: Christopher Alfeld (calfeld@calfeld.net)
 
 require 'rubygems'
 require 'sqlite3'
+require 'thread'
 
 module Heron
   # Dictionary Related Errors
@@ -36,74 +40,76 @@ module Heron
   # Must be attached to a webserver via a dictionary controller such as
   # {Heron.SinatraDictionary}.
   #
+  # This class will spawn a domain worker thread for any domain that receives
+  # operations.  Incoming messages will be demultiplexed and queues to the
+  # appropriate workers which will then record them in the database and issue
+  # messages to any subscribed clients.
+  #
+  # Databases are stored in a directory as SQLite3 databases.
+  #
   class Dictionary
-    # @return [String] Path to SQLite database.
+    # @return [String] Path to directory where database are stored.
     attr_reader :db_path
     # @return [Proc] Proc to call with verbose message.
     attr_accessor :on_verbose
     # @return [Proc] Proc to call with error message.
     attr_accessor :on_error
-    # @return [Proc] Proc to call with client_id and session ID on connect.
-    attr_accessor :on_connect
-    # @return [Proc] Proc to call with client_id on connect.
-    attr_accessor :on_disconnect
+    # @return [Proc] Proc to call with client_id and domain on subscribe.
+    attr_accessor :on_subscribe
+    # @return [Proc] Proc to call with message on collision.
+    attr_accessor :on_collision
 
     # Constructor.
     #
     # @param [Hash] args Arguments.
-    # @option args [Proc] :on_connect Proc to call with client_id and
-    #   session_id on connect.  Defaults to nop.
-    # @option args [Proc] :on_disconnect Proc to call with client_id on
-    #   disconnect.  Defaults to nop.
     # @option args [Proc] :on_verbose Proc to call with message on verbose
     #   message.  Defauls to nop.
     # @option args [Proc] :on_error Proc to call with error on error message.
     #   Defaults to writing to stderr.
-    # @option args [String] :db_path Path to database file.  If file
-    #   does not exist, new database will be initialized.  Required.
-    # @option args [Proc] :comet Proc to return Heron::Comet instance to use.
-    #   Required.
+    # @option args [Proc] :on_subscribe Proc to call with client_id and
+    #   domain on subscribe.  Defaults to nop.
+    # @option args [Proc] :on_collison Proc to call with message on collision.
+    #   Defaults to calling on_verbose with prefix of 'COLLISION '.
+    # @option args [String] :db_path Path to directory to hold database files.
+    #   Does not need to exist.  Required.
+    # @option args [Proc] :send Proc to call with client_id and message when
+    #   a message needs to be sent, e.g., Heron::Comet#queue.  Required.
     def initialize( args = {} )
       bad = args.keys.to_set - [
-        :on_verbose, :on_error, :db_path, :comet
+        :on_verbose, :on_connect, :on_subscribe, :on_disconnect, :on_error,
+        :on_collision, :db_path, :send
       ].to_set
       raise DictionaryError.new("Invalid argument(s): #{bad.to_a}") if ! bad.empty?
 
       required = -> s { raise DictionaryError.new( "Required: #{s}" ) }
-      @on_verbose    = args[ :on_verbose ]    || -> x {}
-      @on_connect    = args[ :on_connect ]    || -> x, y {}
-      @on_disconnect = args[ :on_disconnect ] || -> x {}
-      @on_error      = args[ :on_error ]      || -> x {STDERR.puts "Dictionary Error: #{x}"}
-      @db_path       = args[ :db_path ]       || required.( 'db_path' )
-      @comet         = args[ :comet ]         || required.( 'comet'   )
+      @on_verbose    = args[ :on_verbose    ] || -> x {}
+      @on_subscribe  = args[ :on_subscribe  ] || -> x, y {}
+      @on_error      = args[ :on_error      ] || -> x {STDERR.puts "Dictionary Error: #{x}"}
+      @on_collision  = args[ :on_collision  ] || -> x {@on_verbose.("COLLISION: #{s}")}
+      @db_path       = args[ :db_path       ] || required.( 'db_path' )
+      @send          = args[ :send          ] || required.( 'send'    )
+
+      @domain_workers = Hash.new do |h,k|
+        info = DomainInfo.new( k, nil, Queue.new, Set.new )
+        info.thread = Thread.new {domain_worker( info )}
+        h[k] = info
+      end
     end
 
-    # Send message to dictionary clients.
+    # Shutdown Dictionary.
     #
-    # @param [Array<String>] to   Array of client ids.
-    # @param [String]        json Message to send.
-    # @param [HeronDatabase] db   Database conenction to use; default to new.
-    # @return [undefined] undefined
-    def send_messages( to, json, db = database )
-      bad_clients = []
-      to.each do |client_id|
-        begin
-          comet.queue( client_id, json )
-        rescue Heron::CometError => e
-          error "Could not send to #{client_id}.  " +
-            "Perhaps disconnected: #{e.to_s}"
-          bad_clients << client_id
-        end
+    # This will ask every domain worker to shutdown and then wait for them
+    # all to exit.  This ensures that any messages received but not sent
+    # before shutdown was called are recorded and distributed.
+    def shutdown
+      @on_verbose.( 'Shutting down...' )
+      @domain_workers.each do |domain, info|
+        info.queue << nil
       end
-
-      if ! bad_clients.empty?
-        verbose "Cleaning up #{bad_clients.size} bad clients."
-        db.transaction do
-          bad_clients.each do |client_id|
-            disconnect( client_id.to_s, db )
-          end
-        end
+      @domain_workers.each do |domain, info|
+        info.thread.join
       end
+      @on_verbose.( 'Shut down.' )
     end
 
     # Handle messages from client.
@@ -112,98 +118,8 @@ module Heron
     # @param [String] messages Messages in JSON.
     # @return [undefined] undefined
     def messages( client_id, messages )
-      handle_messages_json( client_id, messages )
-
-      db = database
-      others = db.other_clients_in_session_as( client_id )
-      send_messages( others, messages, db )
-    end
-
-    # Connect client to session.
-    #
-    # @param [String] client_id ID of connecting client.
-    # @param [String] session_id ID of session to connect to.
-    # @return [undefined] undefined
-    def connect( client_id, session_id )
-      verbose( "CONNECT #{client_id} #{session_id}" )
-      @on_connect.( client_id, session_id )
-
-      db = database
-      db.transaction do
-        db.connect_client( client_id, session_id )
-
-        messages =
-          db.keys_for_client( client_id ).collect do |domain,key,value|
-            {
-              command: 'create',
-              domain:  domain,
-              key:     key,
-              value:   value
-            }
-          end
-        messages << {
-          command: 'create',
-          domain:  '_',
-          key:     'synced',
-          value:   'true'.to_json
-        }
-
-        send_messages( [client_id], messages.to_json, db )
-      end
-    end
-
-    # Disconnect client.
-    #
-    # This should be called by the on_disconnect {Heron::Comet} handler.
-    #
-    # @param [String] client_id ID of disconnecting client.
-    # @param [DictionaryDB] db Database connection to use; default to new.
-    # @return [undefined] undefined
-    def disconnect( client_id, db = database )
-      verbose( "DISCONNECT #{client_id}" )
-      @on_disconnect.( client_id )
-
-      database.disconnect_client( client_id.to_s )
-    end
-
-    private
-
-    # @return [Heron::Comet] Comet support.
-    def comet
-      @comet.()
-    end
-
-    # Emit verbose message.
-    #
-    # @param [String] s Message.
-    # @return [undefined] undefined
-    def verbose( s )
-      @on_verbose.( s )
-    end
-
-    # Emit error message.
-    #
-    # @param [String] s Message.
-    # @return [undefined] undefined
-    def error( s )
-      @on_error.( s )
-    end
-
-    # Access database.
-    #
-    # @return [DictionaryDB] Database.
-    def database
-      ::Heron::DictionaryDB.new( @db_path )
-    end
-
-    # Handle messages for a domain.
-    #
-    # @param [String] domain message are for.
-    # @param [String] messages_json Messages in JSON.
-    # @return [undefined] undefined
-    def handle_messages_json( domain, messages_json )
-      db = database
-      JSON.parse( messages_json ).each do |message|
+      by_domain = Hash.new {|h,k| h[k] = []}
+      JSON.parse( messages ).each do |message|
         command = message[ 'command' ]
         raise "Missing command." if ! command
         domain = message[ 'domain' ]
@@ -211,266 +127,285 @@ module Heron
         key = message[ 'key' ]
         raise "Missing key." if ! key
 
-        value = message[ 'value' ] # may be nil
+        by_domain[ domain ] << message
+      end
 
-        case command
-        when 'create'
-          raise "Missing value." if ! value
-          verbose( "C #{domain}.#{key} = #{value}" )
-          db.create_key( domain, key.to_s, value )
-        when 'update'
-          raise "Missing value." if ! value
-          verbose( "U #{domain}.#{key} = #{value}" )
-          db.update_key( value, domain, key.to_s )
-        when 'delete'
-          verbose( "D #{domain}.#{key}" )
-          db.delete_key( domain, key.to_s )
-        else
-          raise "Invalid command: #{message['command']}"
+      by_domain.each do |domain, messages|
+        issue( :messages, domain, client_id, messages )
+      end
+    end
+
+    # Server-side create operation.
+    #
+    # @param [String] domain  Domain.
+    # @param [String] key     Key.
+    # @param [String] value   Value.  Must be string, convert complex objects
+    #                         to JSON.
+    # @param [String] version Initial version.
+    # @return [undefined] undefined
+    def create( domain, key, value, version = nil )
+      issue( :messages, domain, nil, [{
+        'command' => 'create',
+        'domain'  => domain,
+        'key'     => key,
+        'value'   => value,
+        'version' => version
+      }])
+    end
+
+    # Update server-side update operation.
+    #
+    # This method is of dubious use for non-ephemeral keys as you are
+    # unlikely to be aware of the current versions and thus unable to update
+    # without collision.
+    #
+    # @param [String] domain  Domain.
+    # @param [String] key     Key.
+    # @param [String] value   Value.  Must be string, convert complex objects
+    #                         to JSON.
+    # @param [String] previous_version Previous version.
+    # @param [String] version Initial version.
+    # @return [undefined] undefined
+    def update( domain, key, value, previous_version = nil, version = nil )
+      issue( :messages, domain, nil, [{
+        'command'          => 'update',
+        'domain'           => domain,
+        'key'              => key,
+        'value'            => value,
+        'previous_version' => previous_version,
+        'version'          => version
+      }])
+    end
+
+    # Delete server-side update operation.
+    #
+    # @param [String] domain  Domain.
+    # @param [String] key     Key.
+    # @return [undefined] undefined
+    def delete( domain, key )
+      issue( :messages, domain, nil, [{
+        command: 'delete',
+        domain:  domain,
+        key:     key
+      }])
+    end
+
+
+    # Subscribe a client to a domain.
+    #
+    # @param [String] client_id Client to subscribe.
+    # @param [String] domain    Domain to subscribe to.
+    def subscribe( client_id, domain )
+      @on_verbose.( "JOIN #{client_id} #{domain}" )
+      @on_subscribe.( client_id, domain )
+
+      issue( :subscribe, domain, client_id )
+    end
+
+    private
+
+    # Per-domain info.
+    DomainInfo = Struct.new(
+      :domain, # Domain name.
+      :thread, # Worker thread.
+      :queue,  # Queue of metamessages for domain worker.
+      :clients # Subscribe clients to domain.
+    )
+
+    # Send message to dictionary clients.
+    #
+    # @param [Array<String>] to      Array of client ids.
+    # @param [String]        json    Message to send.
+    # @yield String No longer valid client id.
+    # @return [undefined] undefined
+    def send_messages( to, json )
+      to.each do |client_id|
+        begin
+          @send.( client_id, json )
+        rescue Heron::CometError => e
+          @on_verbose.(
+            "Could not send to #{client_id}.  " +
+            "Assuming disconnected: #{e.to_s}"
+          )
+          yield client_id
         end
       end
     end
-  end
 
-  # Implements underlying database for Heron.Dictionary.
-  #
-  # The Dictionary is a set of domains, each of which is a set of key, value
-  # pairs.  Alternately, the Dictionary is a map of [domain, key] to value.
-  # Every client connects to a single session.  Each session contains one or
-  # more domains.
-  #
-  # This class is fairly lowlevel.  It needs to be put together in a
-  # controller such as SinatraDictionary.  In the future, this may be
-  # rearranged.
-  #
-  # @!method clients_in_session( session_id )
-  #   @param [String] session_id ID of session.
-  #   @return [Array<String>] IDs of client in session.
-  #
-  # @!method other_clients_in_session_as( client_id )
-  #   @param [String] client_id ID of client.
-  #   @return [Array<String>] IDs of clients in same session as +client_id+.
-  #
-  # @!method create_key( domain, key, value )
-  #   @param [String] domain  Domain of key.
-  #   @param [String] key     Name of key.
-  #   @param [String] value   Value of key.
-  #   @return [undefined] undefined
-  #
-  # @!method update_key( value, domain, key )
-  #   @param [String] value  Value to set to.
-  #   @param [String] domain Domain of key to set.
-  #   @param [String] key    Name of key to set.
-  #   @return [undefined] undefined
-  #
-  # @!method delete_key( domain, key )
-  #   @param [String] domain Domain of key to delete.
-  #   @param [String] key    Name of key to delete.
-  #   @return [undefined] undefined
-  #
-  # @!method all_key_values
-  #   @return [Array<String, String, String, String>] List of of all
-  #     [domain, key, value]
-  #
-  # @!method all_domains
-  #   @return [Array<String>] List of all domains.
-  #
-  # @!method key_value( domain, key )
-  #   @param [String] domain Domain of key.
-  #   @param [String] key    Name of key.
-  #   @return [Array<String>] value of key.
-  #
-  # @!method connect_client( client_id, session_id )
-  #   @param [String] client_id  ID of client to connect.
-  #   @param [String] session_id ID of session to connect to.
-  #   @return [undefined] undefined
-  #
-  # @!method disconnect_clinet( client_id )
-  #   @param [String] client_id ID of client to disconnect.
-  #   @return [undefined] undefined
-  #
-  # @!method keys_in_domain( domain )
-  #   @param [String] domain Domain to find keys of.
-  #   @return [Array<String, String, String>] All [key, value]s in
-  #     domain.
-  #
-  # @!method keys_for_client( client_id )
-  #   @param [String] client_id ID of client to find keys of.
-  #   @return [Array<String, String, String>] All [key, value]s for
-  #     client.
-  #
-  # @!method add_domain( session_id, domain )
-  #   @param [String] session_id Session to add domain to.
-  #   @param [String] domain     Domain to add.
-  #   @return [undefined] undefined
-  #
-  # @!method method remove_domain( session_id, domain )
-  #   @param [String] session_id Session to remove domain from.
-  #   @param [String] domain     Domain to remove.
-  #   @return [undefined] undefined
-  #
-  # @!method sessions
-  #   @return [Array<String, String>] All [session_id, domain] pairs.
-  #
-  class DictionaryDB
-    protected
-    # Add instance method +name+ corresponding to +query+.
+    # Low level issue a command.
     #
-    # Queries will be prepared on first call.
+    # This queues a command for a domain worker to handle.  It allows server
+    # side low level protocol operations.  For server side key operations, see
+    # #create, #update, and #delete.
     #
-    # @param [String]  name   Name of method.
-    # @param [String]  query  SQL Query to implement method.
-    # @param [Boolean] single Set to true if querying a single column.
+    # @param [String] command   Command to issue to domain worker.
+    # @param [String] domain    Domain to issue command for.
+    # @param [String] client_id Client ID to use.  Can be nil to indicate
+    #                           server origin.
+    # @param [Array<Object>] info Any additional arguments.
     # @return [undefined] undefined
-    def self.prepare( name, query, single = false )
-      s =
-        "def #{name}( *args )\n" +
-        "  @queries[\"#{name}\"] ||= @db.prepare( \"#{query}\" )\n" +
-        "  result = @queries[\"#{name}\"].execute( *args )\n"
-      if single
-        s += "  result = result.collect {|x| x[0]};\n"
-      end
-      s += "end\n"
-
-      class_eval( s )
+    def issue( command, domain, client_id, *info )
+      @domain_workers[ domain ].queue << [ command, client_id, *info ]
     end
 
-    public
-
-    # @return [SQLite3::Database] Underlying database handle.
-    attr_reader :db
-
-    prepare(
-      "clients_in_session",
-      "SELECT id FROM clients WHERE session_id = ?",
-      true
-    )
-    prepare(
-      "other_clients_in_session_as",
-      "SELECT DISTINCT a.id FROM clients AS a " +
-      "JOIN sessions on a.session_id = sessions.id " +
-      "JOIN clients AS b on sessions.id = b.session_id " +
-      "WHERE b.id = ? AND a.id != b.id",
-      true
-    )
-    prepare(
-      "create_key",
-      "INSERT OR REPLACE INTO key_values ( domain, key, value ) VALUES ( ?, ?, ?, ? )"
-    )
-    prepare(
-      "update_key",
-      "UPDATE key_values SET value = ? WHERE domain = ? AND KEY = ?"
-    )
-    prepare(
-      "delete_key",
-      "DELETE FROM key_values WHERE domain = ? AND key = ?"
-    )
-    prepare(
-      'all_key_values',
-      'SELECT domain, key, value FROM key_values'
-    )
-    prepare(
-      'all_domains',
-      'SELECT DISTINCT domain FROM key_values',
-      true
-    )
-    prepare(
-      'key_value',
-      'SELECT value FROM key_values WHERE domain = ? AND key = ?',
-      true
-    )
-    prepare(
-      "connect_client",
-      "INSERT OR REPLACE INTO clients ( id, session_id ) VALUES ( ?, ? )"
-    )
-    prepare(
-      "disconnect_client",
-      "DELETE FROM clients WHERE id = ?"
-    )
-    prepare(
-      "keys_in_domain",
-      "SELECT key, value FROM key_values " +
-      "WHERE domain = ?"
-    )
-    prepare(
-      "keys_for_client",
-      "SELECT key_values.domain, key, value FROM key_values " +
-      "JOIN sessions ON sessions.domain = key_values.domain " +
-      "JOIN clients ON clients.session_id = sessions.id " +
-      "WHERE clients.id = ?"
-    )
-    prepare(
-      "add_domain",
-      "INSERT OR REPLACE INTO sessions ( id, domain ) VALUES ( ?, ? )"
-    )
-    prepare(
-      "remove_domain",
-      "DELETE FROM sessions WHERE id = ? AND domain = ?"
-    )
-    prepare(
-      "sessions",
-      "SELECT id,domain FROM sessions"
-    )
-
-    # Constructor.
+    # Main loop for a domain worker.  Does not return until shutdown.
     #
-    # @param [String] path Path to SQLite3 database file.
-    def initialize( path )
-      if path.is_a?( String )
-        @db = SQLite3::Database.new( path )
-      else
-        @db = db
-      end
-
-      @queries = {}
-
-      create
-    end
-
-    # Execute code as a single transaction.
-    #
-    # @yield Proc run within a tranasction.
-    # @return Result of proc.
-    def transaction( &p )
-      @db.transaction( &p )
-    end
-
-    # Create database tables that do not exist.
+    # @param [DomainInfo] info Domain information.
     # @return [undefined] undefined
-    def create
-      @db.transaction do
-        @db.execute(
-          "CREATE TABLE IF NOT EXISTS sessions (
-            id, domain
-          )"
-        )
-        @db.execute(
-          "CREATE INDEX IF NOT EXISTS idx_sessions_on_id " +
-          "ON sessions (id)"
-        )
-        @db.execute(
-          "CREATE UNIQUE INDEX IF NOT EXISTS idx_session_on_id_and_domain " +
-          "ON sessions (id, domain)"
-        )
-        @db.execute(
-          "CREATE TABLE IF NOT EXISTS clients (
-            id, session_id,
-            PRIMARY KEY (id),
-            FOREIGN KEY (session_id) REFERENCES sessions (id)
-          )"
-        )
-        @db.execute(
-          "CREATE INDEX IF NOT EXISTS idx_clients_on_session_id " +
-          "ON clients (session_id)"
-        )
-        @db.execute(
-          "CREATE TABLE IF NOT EXISTS key_values (
-            domain, key, value, 
-            PRIMARY KEY (domain, key)
-          )"
-        )
+    def domain_worker( info )
+      # Sanitize domain name before using it as part of filename.
+      if info.domain !~ /^\w+$/ || info.domain == '_'
+        raise "Invalid domain: #{info.domain}"
+      end
+
+      # Long lived thread, so maintain database connections.
+      FileUtils.mkdir_p( @db_path )
+      db = SQLite3::Database.new(
+        File.join( @db_path, info.domain + '.db' )
+      )
+      db.execute(
+        'CREATE TABLE IF NOT EXISTS key_values (
+          key, value, version,
+          PRIMARY KEY (key)
+        )'
+      )
+      create_q   = db.prepare(
+        'INSERT OR REPLACE INTO key_values ' +
+        '( key, value, version ) VALUES ( ?, ?, ? )'
+      )
+      update_q   = db.prepare( 'UPDATE key_values SET value = ?, version = ? WHERE key = ?' )
+      delete_q   = db.prepare( 'DELETE FROM key_values WHERE key = ?'          )
+      all_keys_q = db.prepare( 'SELECT key, value, version FROM key_values'    )
+      query_q    = db.prepare(
+        'SELECT value, version FROM key_values ' +
+        'WHERE key = ?'
+      )
+
+      # Will exit if a nil every shows up on queue.
+      while true do
+        metamessage = info.queue.pop()
+        return if metamessage.nil?
+
+        metacommand = metamessage[0]
+
+        case metacommand
+        when :subscribe then
+          client_id = metamessage[1]
+          info.clients << client_id
+          messages =
+            all_keys_q.execute().collect do |key, value, version|
+              {
+                'command' => 'create',
+                'domain'  => info.domain,
+                'key'     => key,
+                'value'   => value,
+                'version' => version
+              }
+            end
+          messages << {
+            'command' => 'create',
+            'domain'  => info.domain,
+            'key'     => '_synced',
+            'value'   => 'true'.to_json,
+            'version' => ''
+          }
+
+          send_messages( [client_id], messages.to_json ) do |id|
+            info.clients.delete( id )
+          end
+        when :messages then
+          client_id = metamessage[1]
+          messages  = metamessage[2]
+
+          if ! messages.is_a?(Array)
+            @on_error.( "Invalid messages.  Expected array." )
+            next
+          end
+
+          messages_to_distribute = []
+          messages.each do |message|
+            command = message[ 'command' ]
+            domain  = message[ 'domain'  ]
+            key     = message[ 'key'     ].to_s
+
+            if ! command || ! domain || ! key
+              @on_error.( "Invalid message: #{message.inspect}" )
+              next
+            end
+
+            ephemeral = key[0] == '%'
+            value            = message[ 'value'            ] # may be nil
+            version          = message[ 'version'          ] # may be nil
+            previous_version = message[ 'previous_version' ] # may be nil
+
+            real_value = real_version = nil
+            if ! ephemeral
+              dbr = query_q.execute( key ).first
+              if dbr
+                real_value, real_version = dbr
+              end
+            end
+
+            if ephemeral && command != 'update'
+              @on_error.( "Invalid command #{command} for ephemeral key #{key}")
+              next
+            end
+
+            case command
+            when 'create'
+              if ! value || ! version
+                @on_error.( "Create message missing arguments: #{message.inspect}" )
+                next
+              end
+              if ! real_value.nil?
+                @on_collision.( "C #{domain}.#{key} = #{value} [#{version}]" )
+                next
+              end
+              @on_verbose.( "C #{domain}.#{key} [#{version}]" )
+              create_q.execute( key, value, version )
+            when 'update'
+              if ephemeral
+                if ! value
+                  @on_error.( "Update message missing arguments: #{message.inspect}" )
+                  next
+                end
+                @on_verbose.( "U #{domain}.#{key} = #{value} [ephemeral]" )
+              else
+                if ! value || ! version || ! previous_version
+                  @on_error.( "Update message missing arguments: #{message.inspect}" )
+                  next
+                end
+                if real_version != previous_version
+                  @on_collision.( "U #{domain}.#{key} [#{previous_version} vs. #{real_version}]" )
+                  next
+                end
+                @on_verbose.( "U #{domain}.#{key} = #{value} [#{real_version} -> #{version}]" )
+                update_q.execute( value, version, key )
+              end
+            when 'delete'
+              if ! real_value
+                @on_collision.( "D #{domain}.#{key}" )
+                next
+              end
+              @on_verbose.( "D #{domain}.#{key}" )
+              delete_q.execute( key )
+            else
+              @on_error.( "Unknown command: #{message.inspect}" )
+            end
+
+            messages_to_distribute << message
+          end
+          if ! messages_to_distribute.empty?
+            others = info.clients.select {|x| x != client_id}
+            send_messages( others, messages_to_distribute.to_json ) do |id|
+              info.clients.delete( id )
+            end
+          end
+        else
+          # This is a bug, not invalid client input.
+          raise "Unknown metacommand: #{metacommand}"
+        end
       end
     end
-
   end
 end

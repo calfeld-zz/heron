@@ -24,7 +24,7 @@
         draggable: true
       )
 
-      circle.on('dragmove',
+      circle.on('dragend',
         (e) ->
           dictionary.update(
             'example_dictionary', 'loc',
@@ -33,29 +33,33 @@
           )
       )
 
-      layer.add(circle)
+      # Will add circle when synced.
       stage.add(layer)
 
       @receiver =
         create: ( domain, key, value ) ->
           @update( domain, key, value )
         update: ( domain, key, value ) ->
-          console.debug("got here", key, value)
           if key == 'loc'
             circle.setX(value.x)
             circle.setY(value.y)
+            stage.draw()
+          else if key == '_synced'
+            layer.add(circle)
             stage.draw()
         delete: ( domain, key ) ->
           # nop
 
       client_id = Heron.Util.generate_id()
 
-      $(document).on('Heron.Dictionary:connected', -> alert("Dictionary Connected"))
+      $(document).on('Heron.Comet:connected', =>
+        @dictionary.subscribe('example_dictionary')
+        alert("Connected")
+      )
 
       @dictionary = new Heron.Dictionary(
         receiver:  @receiver
         client_id: client_id
-        session_id: 'example_dictionary'
         debug:     true
       )
       @comet = new Heron.Comet(
