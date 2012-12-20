@@ -69,7 +69,8 @@ module SinatraDictionary
 
     base.class_variable_set(:@@dictionary, Heron::Dictionary.new(
       db_path: db_path,
-      send:    -> to, msg { base.send( :comet ).queue( to, msg ) }
+      send:    -> to, msg   { base.send( :comet ).queue( to, msg )     },
+      check:   -> client_id { base.send( :comet ).client?( client_id ) }
     ))
 
     base.post prefix + '/messages' do

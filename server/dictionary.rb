@@ -74,10 +74,15 @@ module Heron
     #   Does not need to exist.  Required.
     # @option args [Proc] :send Proc to call with client_id and message when
     #   a message needs to be sent, e.g., Heron::Comet#queue.  Required.
+    # @option args [Proc] :check Proc to call with client_id to check if
+    #   client is still valid, e.g., Heron::Comet#client?.  Default: Always
+    #   true.
+    # @option args [FixNum] :check_delay How often in seconds to check
+    #   clients.  Smaller values will free up resources faster.  Default 60.
     def initialize( args = {} )
       bad = args.keys.to_set - [
         :on_verbose, :on_connect, :on_subscribe, :on_disconnect, :on_error,
-        :on_collision, :db_path, :send
+        :on_collision, :db_path, :send, :check, :check_period
       ].to_set
       raise DictionaryError.new("Invalid argument(s): #{bad.to_a}") if ! bad.empty?
 
@@ -88,11 +93,20 @@ module Heron
       @on_collision  = args[ :on_collision  ] || -> x {@on_verbose.("COLLISION: #{s}")}
       @db_path       = args[ :db_path       ] || required.( 'db_path' )
       @send          = args[ :send          ] || required.( 'send'    )
+      @check         = args[ :check         ] || -> x {true}
+      @check_period  = args[ :check_period  ] || 60
 
-      @domain_workers = Hash.new do |h,k|
-        info = DomainInfo.new( k, nil, Queue.new, Set.new )
-        info.thread = Thread.new {domain_worker( info )}
-        h[k] = info
+      @domain_workers = {}
+
+      # Set up thread to periodically check all clients.  This allows domains
+      # with no remaining clients to detect this condition and shutdown.
+      @check_thread = Thread.new do
+        while true do
+          @domain_workers.each do |domain, info|
+            info.queue << [:check_clients]
+          end
+          sleep @check_period
+        end
       end
     end
 
@@ -109,6 +123,7 @@ module Heron
       @domain_workers.each do |domain, info|
         info.thread.join
       end
+      @check_thread.kill
       @on_verbose.( 'Shut down.' )
     end
 
@@ -245,7 +260,24 @@ module Heron
     # @param [Array<Object>] info Any additional arguments.
     # @return [undefined] undefined
     def issue( command, domain, client_id, *info )
-      @domain_workers[ domain ].queue << [ command, client_id, *info ]
+      worker_info( domain ).queue << [ command, client_id, *info ]
+    end
+
+    # Find or create domain info.
+    #
+    # This routine is an important part of allowing workers to shut themselves
+    # down when they have no clients.
+    #
+    # @param [String] domain Domain to get worker for.
+    # @return [DomainInfo] Info for domain.
+    def worker_info( domain )
+      if @domain_workers[ domain ] && @domain_workers[ domain ].thread.alive?
+        @domain_workers[ domain ]
+      else
+        info = DomainInfo.new( domain, nil, Queue.new, Set.new )
+        info.thread = Thread.new {domain_worker( info )}
+        @domain_workers[ domain ] = info
+      end
     end
 
     # Main loop for a domain worker.  Does not return until shutdown.
@@ -280,6 +312,7 @@ module Heron
         'SELECT value, version FROM key_values ' +
         'WHERE key = ?'
       )
+      queries = [create_q, update_q, delete_q, all_keys_q, query_q]
 
       lost_client = -> client_id do
         info.clients.delete( client_id )
@@ -305,6 +338,11 @@ module Heron
         metacommand = metamessage[0]
 
         case metacommand
+        when :check_clients then
+          @on_verbose.( "Checking #{info.clients.size} clients." )
+          info.clients = info.clients.select( &@check ).to_set
+          @on_verbose.( "Done; now have #{info.clients.size} clients." )
+
         when :subscribe then
           client_id = metamessage[1]
           info.clients << client_id
@@ -439,6 +477,14 @@ module Heron
         else
           # This is a bug, not invalid client input.
           raise "Unknown metacommand: #{metacommand}"
+        end
+
+        # If no clients by this point, shut down.
+        if info.clients.empty?
+          @on_verbose.( "Worker for #{info.domain}: No clients left, shutting down." )
+          queries.each {|q| q.close}
+          db.close
+          return
         end
       end
     end
