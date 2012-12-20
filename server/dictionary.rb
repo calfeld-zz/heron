@@ -281,6 +281,22 @@ module Heron
         'WHERE key = ?'
       )
 
+      lost_client = -> client_id do
+        info.clients.delete( client_id )
+        unsubscribe_message = [{
+          'command' => 'create',
+          'domain'  => info.domain,
+          'key'     => '_unsubscribe',
+          'value'   => client_id.to_json
+        }]
+        send_messages( info.clients.to_a, unsubscribe_message.to_json )
+      end
+
+      send_to_others = -> client_id, json do
+        others = info.clients.select {|x| x != client_id}
+        send_messages( others, json, &lost_client )
+      end
+
       # Will exit if a nil every shows up on queue.
       while true do
         metamessage = info.queue.pop()
@@ -305,14 +321,26 @@ module Heron
           messages << {
             'command' => 'create',
             'domain'  => info.domain,
+            'key'     => '_clients',
+            'value'   => info.clients.to_a.to_json
+          }
+          messages << {
+            'command' => 'create',
+            'domain'  => info.domain,
             'key'     => '_synced',
-            'value'   => 'true'.to_json,
-            'version' => ''
+            'value'   => 'true'.to_json
           }
 
-          send_messages( [client_id], messages.to_json ) do |id|
-            info.clients.delete( id )
-          end
+          send_messages( [client_id], messages.to_json, &lost_client )
+
+          subscribe_message = [{
+            'command' => 'create',
+            'domain'  => info.domain,
+            'key'     => '_subscribe',
+            'value'   => client_id.to_json
+          }]
+          send_to_others.( client_id, subscribe_message.to_json )
+
         when :messages then
           client_id = metamessage[1]
           messages  = metamessage[2]
@@ -396,10 +424,7 @@ module Heron
             messages_to_distribute << message
           end
           if ! messages_to_distribute.empty?
-            others = info.clients.select {|x| x != client_id}
-            send_messages( others, messages_to_distribute.to_json ) do |id|
-              info.clients.delete( id )
-            end
+            send_to_others.( client_id, messages_to_distribute.to_json )
           end
         else
           # This is a bug, not invalid client input.

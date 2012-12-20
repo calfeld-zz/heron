@@ -48,13 +48,14 @@ Heron = @Heron ?= {}
 # it.  Write operations and change notifications are independent.
 #
 # On subscription, create operations for every key in the domain will be sent.
-# A special key, `_synced` with a value of `true` will also be created.  It is
-# guaranteed it will be created last, allowing the client to know when it has
-# received all keys.
+# A special key, `_clients` with a value of an array of all client ids will
+# also be created.  Finally, a special key, `_synced` with a value of `true`
+# will be created.  It is guaranteed it will be created last, allowing the
+# client to know when it has received all keys.
 #
-# @todo Also send `_members` key.
-# @todo Add special `_subscribe` and `_unsubscribe` keys to notify when others
-#  subscribe or unsubscribe from a domain.
+# As clients subscribe and unsubscribe (via disconnect), special `_subscribe`
+# and `_unsubscribe` keys will be created with the values of the client id
+# subscring or unsubscribing.
 #
 # An additional feature is *ephemeral* keys.  Ephemeral keys are keys that
 # begin with `%` and are treated differently:
@@ -85,7 +86,8 @@ Heron = @Heron ?= {}
 # Keys can be any string, but the first character should be in `A-Za-z0-9./`
 # as other characters have special meaning or are researched for future use.
 # Keys beginning with `_` are used to communicate aspects of Dictionary, e.g.,
-# `_synced`.  Keys beginning with `%` are ephemeral.
+# `_synced`.  Such server keys should be treated as ephemeral.
+# Keys beginning with `%` are client ephemerals.
 #
 # @author Christopher Alfeld (calfeld@calfeld.net)
 # @copyright 2010-2012 Christopher Alfeld
