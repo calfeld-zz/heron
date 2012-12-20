@@ -195,10 +195,9 @@
         value: value,
         version: Heron.Util.generate_id()
       };
-      if (this._.is_ephemeral(key)) {
-        raise('Attempt to create ephemeral key.');
+      if (!this._.is_ephemeral(key)) {
+        this._.versions[domain][key] = version;
       }
-      this._.versions[domain][key] = version;
       this._.issue_message(message);
       return this;
     };
@@ -210,9 +209,6 @@
         domain: domain,
         key: key
       };
-      if (is_ephemeral(key)) {
-        raise('Attempt to delete ephemeral key.');
-      }
       this._.issue_message(message);
       return this;
     };

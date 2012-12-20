@@ -60,7 +60,7 @@ Heron = @Heron ?= {}
 # An additional feature is *ephemeral* keys.  Ephemeral keys are keys that
 # begin with `%` and are treated differently:
 #
-# - Only update, no create or delete.
+# - Often managed with only create messages, i.e., no updates or deletes.
 # - Not stored on server so not provide on subscribe.
 # - Not checked for collisions.
 #
@@ -270,9 +270,8 @@ class Heron.Dictionary
       key:     key
       value:   value
       version:  Heron.Util.generate_id()
-    if @_.is_ephemeral( key )
-      raise 'Attempt to create ephemeral key.'
-    @_.versions[domain][key] = version
+    if ! @_.is_ephemeral( key )
+      @_.versions[domain][key] = version
     @_.issue_message( message )
     this
 
@@ -286,8 +285,6 @@ class Heron.Dictionary
       command: 'delete'
       domain:  domain
       key:     key
-    if is_ephemeral( key )
-      raise 'Attempt to delete ephemeral key.'
     @_.issue_message( message )
     this
 

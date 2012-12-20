@@ -374,31 +374,41 @@ module Heron
               end
             end
 
-            if ephemeral && command != 'update'
-              @on_error.( "Invalid command #{command} for ephemeral key #{key}")
-              next
-            end
-
-            case command
-            when 'create'
-              if ! value || ! version
-                @on_error.( "Create message missing arguments: #{message.inspect}" )
-                next
-              end
-              if ! real_value.nil?
-                @on_collision.( "C #{domain}.#{key} = #{value} [#{version}]" )
-                next
-              end
-              @on_verbose.( "C #{domain}.#{key} [#{version}]" )
-              create_q.execute( key, value, version )
-            when 'update'
-              if ephemeral
+            if ephemeral
+              # Ephemeral
+              case command
+              when 'create'
+                if ! value
+                  @on_error.( "Create message missing arguments: #{message.inspect}" )
+                  next
+                end
+                @on_verbose.( "C #{domain}.#{key}" )
+              when 'update'
                 if ! value
                   @on_error.( "Update message missing arguments: #{message.inspect}" )
                   next
                 end
-                @on_verbose.( "U #{domain}.#{key} = #{value} [ephemeral]" )
+                @on_verbose.( "U #{domain}.#{key} = #{value}" )
+              when 'delete'
+                @on_verbose.( "D #{domain}.#{key}" )
               else
+                @on_error.( "Unknown command: #{message.inspect}" )
+              end
+            else
+              # Not ephemeral
+              case command
+              when 'create'
+                if ! value || ! version
+                  @on_error.( "Create message missing arguments: #{message.inspect}" )
+                  next
+                end
+                if ! real_value.nil?
+                  @on_collision.( "C #{domain}.#{key} = #{value} [#{version}]" )
+                  next
+                end
+                @on_verbose.( "C #{domain}.#{key} [#{version}]" )
+                create_q.execute( key, value, version )
+              when 'update'
                 if ! value || ! version || ! previous_version
                   @on_error.( "Update message missing arguments: #{message.inspect}" )
                   next
@@ -409,16 +419,16 @@ module Heron
                 end
                 @on_verbose.( "U #{domain}.#{key} = #{value} [#{real_version} -> #{version}]" )
                 update_q.execute( value, version, key )
+              when 'delete'
+                if ! real_value
+                  @on_collision.( "D #{domain}.#{key}" )
+                  next
+                end
+                @on_verbose.( "D #{domain}.#{key}" )
+                delete_q.execute( key )
+              else
+                @on_error.( "Unknown command: #{message.inspect}" )
               end
-            when 'delete'
-              if ! real_value
-                @on_collision.( "D #{domain}.#{key}" )
-                next
-              end
-              @on_verbose.( "D #{domain}.#{key}" )
-              delete_q.execute( key )
-            else
-              @on_error.( "Unknown command: #{message.inspect}" )
             end
 
             messages_to_distribute << message
