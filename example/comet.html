@@ -23,7 +23,7 @@
         draggable: true
       )
 
-      circle.on('dragmove', (e) ->
+      circle.on('dragend', (e) ->
         jQuery.post(
           '/comet_example',
           client_id: comet.client_id()
