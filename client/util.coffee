@@ -41,3 +41,11 @@ class Heron.Util
     l = c_generate_id_table.length
     ( c_generate_id_table[ @rand( l ) ] for i in [0..n-1] ).join( '' )
 
+  # Return keys of an object.
+  #
+  # @param [object] obj Object to list keys of.
+  # @return [array<string>] List of keys in `obj`.
+  @keys = ( obj ) ->
+    for own k of obj
+      k
+
