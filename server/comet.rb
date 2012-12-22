@@ -29,6 +29,7 @@
 require 'set'
 require 'thread'
 
+# Module for all server side Heron code.
 module Heron
 
   # Comet Related Errors

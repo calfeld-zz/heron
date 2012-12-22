@@ -11,6 +11,8 @@ require 'server/sinatra_dictionary'
 DICTIONARY_DB = '/tmp/heron_dictionary'
 
 Thread.abort_on_exception = true
+
+# Example server for Heron.Dictionary.
 class DictionaryServer < Sinatra::Base
   # Not a good idea in production.
   set :public_folder, File.expand_path(File.join(File.dirname(__FILE__), '..'))
@@ -28,6 +30,7 @@ class DictionaryServer < Sinatra::Base
   # /comet/flush
   include ::Heron::SinatraComet
 
+  # Path to dictionary; used by SinatraDictionary.
   DICTIONARY_DB_PATH = DICTIONARY_DB
   # Defines
   # /dictionary/subscribe

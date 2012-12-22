@@ -6,6 +6,7 @@ require 'sinatra'
 $:.unshift(File.expand_path(File.join(File.dirname(__FILE__), '..')))
 require 'server/sinatra_comet'
 
+# Example server for Heron.Comet.
 class CometServer < Sinatra::Base
   # Not a good idea in production.
   set :public_folder, File.expand_path(File.join(File.dirname(__FILE__), '..'))
