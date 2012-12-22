@@ -29,8 +29,8 @@
         if (!(message.command != null)) {
           throw 'Missing command.';
         }
-        _this._.pdebug('OUT', message);
         message.value = JSON.stringify(message.value);
+        _this._.pdebug('OUT', message);
         if (_this._.batch === 0) {
           _this._.send_to_server('messages', {
             messages: JSON.stringify([message])

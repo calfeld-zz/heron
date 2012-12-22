@@ -117,9 +117,10 @@ class Heron.Dictionary
       throw 'Missing domain.'  if ! message.domain?
       throw 'Missing command.' if ! message.command?
 
+      message.value = JSON.stringify( message.value )
+
       @_.pdebug( 'OUT', message )
 
-      message.value = JSON.stringify( message.value )
       if @_.batch == 0
         @_.send_to_server( 'messages',
           messages: JSON.stringify([ message ])
