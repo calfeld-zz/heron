@@ -45,4 +45,5 @@ task :doc do
   FileUtils.mkdir_p(DOC_DIR)
   sh "codo -v -o #{codo_dir} --title Heron"
   sh "yard --verbose -o #{yard_dir} '**/*.rb'"
+  sh "yard stats --list-undoc '**/*.rb'"
 end
