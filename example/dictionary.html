@@ -53,12 +53,11 @@
       client_id = Heron.Util.generate_id()
 
       $(document).on('Heron.Comet:connected', =>
-        @dictionary.subscribe('example_dictionary')
+        @dictionary.subscribe('example_dictionary', @receiver)
         alert("Connected")
       )
 
       @dictionary = new Heron.Dictionary(
-        receiver:  @receiver
         client_id: client_id
         debug:     true
       )

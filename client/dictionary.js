@@ -8,25 +8,19 @@
   Heron.Dictionary = (function() {
 
     function Dictionary(config) {
-      var _ref1, _ref2, _ref3,
+      var _ref1, _ref2,
         _this = this;
       if (config == null) {
         config = {};
       }
       this._ = {
-        receiver: (function() {
-          if ((_ref1 = config.receiver) != null) {
-            return _ref1;
-          } else {
-            throw 'Missing receiver.';
-          }
-        })(),
         client_id: config.client_id,
-        debug: (_ref2 = config.debug) != null ? _ref2 : false,
-        path: (_ref3 = config.path) != null ? _ref3 : '/dictionary',
+        debug: (_ref1 = config.debug) != null ? _ref1 : false,
+        path: (_ref2 = config.path) != null ? _ref2 : '/dictionary',
         batch: 0,
         messages: [],
-        versions: {}
+        versions: {},
+        receivers: {}
       };
       this._.issue_message = function(message) {
         if (!(message.domain != null)) {
@@ -74,44 +68,65 @@
     }
 
     Dictionary.prototype.receive = function(json) {
-      var ephemeral, message, messages, _base, _base1, _base2, _base3, _base4, _base5, _base6, _i, _len, _name, _name1, _ref1, _ref2;
+      var active_receivers, ephemeral, message, messages, r, receivers, _base, _base1, _i, _j, _k, _l, _len, _len1, _len2, _len3, _len4, _m, _name, _name1, _ref1, _ref2;
       messages = jQuery.parseJSON(json);
       this._.pdebug('IN begin');
-      if (typeof (_base = this._.receiver).begin === "function") {
-        _base.begin();
-      }
+      active_receivers = {};
       for (_i = 0, _len = messages.length; _i < _len; _i++) {
         message = messages[_i];
         ephemeral = this._.is_ephemeral(message.key);
+        receivers = this._.receivers[message.domain];
+        for (_j = 0, _len1 = receivers.length; _j < _len1; _j++) {
+          r = receivers[_j];
+          if (!(active_receivers[r] != null)) {
+            active_receivers[r] = true;
+            if (typeof r.begin === "function") {
+              r.begin();
+            }
+          }
+        }
+        if (!(receivers != null)) {
+          next;
+
+        }
         switch (message.command) {
           case 'create':
             this._.pdebug('IN create', message.domain, message.key, message.value);
-            if (typeof (_base1 = this._.receiver).create === "function") {
-              _base1.create(message.domain, message.key, jQuery.parseJSON(message.value));
+            for (_k = 0, _len2 = receivers.length; _k < _len2; _k++) {
+              r = receivers[_k];
+              if (typeof r.create === "function") {
+                r.create(message.domain, message.key, jQuery.parseJSON(message.value));
+              }
             }
             if (!ephemeral) {
-              if ((_ref1 = (_base2 = this._.versions)[_name = message.domain]) == null) {
-                _base2[_name] = {};
+              if ((_ref1 = (_base = this._.versions)[_name = message.domain]) == null) {
+                _base[_name] = {};
               }
               this._.versions[message.domain][message.key] = message.version;
             }
             break;
           case 'update':
             this._.pdebug('IN update', message.domain, message.key, message.value);
-            if (typeof (_base3 = this._.receiver).update === "function") {
-              _base3.update(message.domain, message.key, jQuery.parseJSON(message.value));
+            for (_l = 0, _len3 = receivers.length; _l < _len3; _l++) {
+              r = receivers[_l];
+              if (typeof r.update === "function") {
+                r.update(message.domain, message.key, jQuery.parseJSON(message.value));
+              }
             }
             if (!ephemeral) {
-              if ((_ref2 = (_base4 = this._.versions)[_name1 = message.domain]) == null) {
-                _base4[_name1] = {};
+              if ((_ref2 = (_base1 = this._.versions)[_name1 = message.domain]) == null) {
+                _base1[_name1] = {};
               }
               this._.versions[message.domain][message.key] = message.version;
             }
             break;
           case 'delete':
             this._.pdebug('IN delete', message.domain, message.key);
-            if (typeof (_base5 = this._.receiver)["delete"] === "function") {
-              _base5["delete"](message.domain, message.key);
+            for (_m = 0, _len4 = receivers.length; _m < _len4; _m++) {
+              r = receivers[_m];
+              if (typeof r["delete"] === "function") {
+                r["delete"](message.domain, message.key);
+              }
             }
             if (!ephemeral) {
               delete this._.versions[message.domain][message.key];
@@ -121,8 +136,10 @@
             error("Unknown command: " + message.command);
         }
       }
-      if (typeof (_base6 = this._.receiver).finish === "function") {
-        _base6.finish();
+      for (r in active_receivers) {
+        if (typeof r.finish === "function") {
+          r.finish();
+        }
       }
       this._.pdebug('IN finish');
       return this;
@@ -158,14 +175,18 @@
       return this;
     };
 
-    Dictionary.prototype.subscribe = function(domain) {
+    Dictionary.prototype.subscribe = function(domain, receiver) {
       if (!(this._.client_id != null)) {
         throw 'Missing client_id.';
       }
-      this._.pdebug('SUBSCRIBE', domain);
-      this._.send_to_server('subscribe', {
-        domain: domain
-      });
+      if (!this._.receivers[domain]) {
+        this._.pdebug('SUBSCRIBE', domain);
+        this._.send_to_server('subscribe', {
+          domain: domain
+        });
+        this._.receivers[domain] = [];
+      }
+      this._.receivers[domain].push(receiver);
       return this;
     };
 

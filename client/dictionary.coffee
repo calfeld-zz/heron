@@ -71,7 +71,7 @@ Heron = @Heron ?= {}
 # this connection up.  In addition, any subscription requires the
 # {Heron.Comet} client id.
 #
-# To receive notifcations, provide a receiver object on construction with the
+# To receive notifcations, provide a receiver object on subscription with the
 # methods:
 #
 # - `create( domain, key, value )`
@@ -95,9 +95,6 @@ class Heron.Dictionary
   # Constructor.
   #
   # @param [object] config Configuration.
-  # @option config [object] receiver Receiver of messages.  See
-  #   {Heron.Dictionary}.
-  #   Required.
   # @option config [string] client_id Client id.  Must be the same as the
   #   the Comet client id.
   #   Required if subscriptions ({#subscribe}) are used.
@@ -108,13 +105,13 @@ class Heron.Dictionary
   #   Default: '/dictionary'
   constructor: ( config = {} ) ->
     @_ =
-      receiver:   config.receiver   ? throw 'Missing receiver.'
       client_id:  config.client_id
       debug:      config.debug      ? false
       path:       config.path       ? '/dictionary'
       batch:      0
       messages:   []
       versions:   {}
+      receivers:  {}
 
     @_.issue_message = ( message ) =>
       throw 'Missing domain.'  if ! message.domain?
@@ -154,30 +151,41 @@ class Heron.Dictionary
   receive: ( json ) ->
     messages = jQuery.parseJSON( json )
     @_.pdebug( 'IN begin' )
-    @_.receiver.begin?()
+    active_receivers = {}
     for message in messages
       ephemeral = @_.is_ephemeral( message.key )
+      receivers = @_.receivers[ message.domain ]
+      for r in receivers
+        if ! active_receivers[ r ]?
+          active_receivers[ r ] = true
+          r.begin?()
+      if ! receivers?
+        next
       switch message.command
         when 'create'
           @_.pdebug( 'IN create', message.domain, message.key, message.value )
-          @_.receiver.create?( message.domain, message.key, jQuery.parseJSON( message.value ) )
+          for r in receivers
+            r.create?( message.domain, message.key, jQuery.parseJSON( message.value ) )
           if ! ephemeral
             @_.versions[message.domain] ?= {}
             @_.versions[message.domain][message.key] = message.version
         when 'update'
           @_.pdebug( 'IN update', message.domain, message.key, message.value )
-          @_.receiver.update?( message.domain, message.key, jQuery.parseJSON( message.value ) )
+          for r in receivers
+            r.update?( message.domain, message.key, jQuery.parseJSON( message.value ) )
           if ! ephemeral
             @_.versions[message.domain] ?= {}
             @_.versions[message.domain][message.key] = message.version
         when 'delete'
           @_.pdebug( 'IN delete', message.domain, message.key )
-          @_.receiver.delete?( message.domain, message.key )
+          for r in receivers
+            r.delete?( message.domain, message.key )
           if ! ephemeral
             delete @_.versions[message.domain][message.key]
         else
           error( "Unknown command: #{message.command}" )
-    @_.receiver.finish?()
+    for r of active_receivers
+      r.finish?()
     @_.pdebug( 'IN finish' )
     this
 
@@ -232,10 +240,13 @@ class Heron.Dictionary
   #
   # @param [String] domain Domain to subscribe to.
   # @return [Heron.Dictionary] this
-  subscribe: ( domain ) ->
+  subscribe: ( domain, receiver ) ->
     throw 'Missing client_id.' if ! @_.client_id?
-    @_.pdebug( 'SUBSCRIBE', domain )
-    @_.send_to_server( 'subscribe', domain: domain )
+    if ! @_.receivers[ domain ]
+      @_.pdebug( 'SUBSCRIBE', domain )
+      @_.send_to_server( 'subscribe', domain: domain )
+      @_.receivers[ domain ] = []
+    @_.receivers[ domain ].push( receiver )
     this
 
   # Update.
