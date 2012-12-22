@@ -322,7 +322,7 @@ module Heron
           'key'     => '_unsubscribe',
           'value'   => client_id.to_json
         }]
-        send_messages( info.clients.to_a, unsubscribe_message.to_json )
+        send_messages( info.clients.to_a, unsubscribe_message.to_json, &lost_client )
       end
 
       send_to_others = -> client_id, json do
