@@ -281,9 +281,10 @@ class Heron.Dictionary
       domain:  domain
       key:     key
       value:   value
-      version:  Heron.Util.generate_id()
     if ! @_.is_ephemeral( key )
-      @_.versions[domain][key] = version
+      message.version = Heron.Util.generate_id()
+      @_.versions[domain] ?= {}
+      @_.versions[domain][key] = message.version
     @_.issue_message( message )
     this
 

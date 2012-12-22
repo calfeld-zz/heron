@@ -208,16 +208,19 @@
     };
 
     Dictionary.prototype.create = function(domain, key, value) {
-      var message;
+      var message, _base, _ref1;
       message = {
         command: 'create',
         domain: domain,
         key: key,
-        value: value,
-        version: Heron.Util.generate_id()
+        value: value
       };
       if (!this._.is_ephemeral(key)) {
-        this._.versions[domain][key] = version;
+        message.version = Heron.Util.generate_id();
+        if ((_ref1 = (_base = this._.versions)[domain]) == null) {
+          _base[domain] = {};
+        }
+        this._.versions[domain][key] = message.version;
       }
       this._.issue_message(message);
       return this;
