@@ -43,6 +43,6 @@ task :doc do
   codo_dir = File.join(DOC_DIR,  'codo')
   yard_dir = File.join(DOC_DIR,  'yard')
   FileUtils.mkdir_p(DOC_DIR)
-  sh "codo -v -o #{codo_dir}"
+  sh "codo -v -o #{codo_dir} --title Heron"
   sh "yard --verbose -o #{yard_dir} '**/*.rb'"
 end
