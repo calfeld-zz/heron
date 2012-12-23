@@ -1,0 +1,109 @@
+<html>
+<head>
+  <script type='application/javascript' src='/external/kinetic.js'></script>
+  <script type='application/javascript' src='/external/jquery.js'></script>
+  <script type='application/javascript' src='/external/coffee-script.js'></script>
+  <script type='application/javascript' src='/client/util.js'></script>
+  <script type='application/javascript' src='/client/comet.js'></script>
+  <script type='application/javascript' src='/client/dictionary.js'></script>
+  <script type='application/javascript' src='/client/thingy.js'></script>
+  <script type='text/coffeescript'>
+    @on_load = ->
+      stage = new Kinetic.Stage(
+        container: "stage"
+        width:     400
+        height:    400
+      )
+      layer = new Kinetic.Layer()
+
+      # Will add circle when synced.
+      stage.add(layer)
+
+      @receiver =
+        create: ( domain, key, value ) ->
+          @update( domain, key, value )
+        update: ( domain, key, value ) ->
+          if key == 'loc'
+            circle.setX(value.x)
+            circle.setY(value.y)
+            stage.draw()
+          else if key == '_synced'
+            layer.add(circle)
+            stage.draw()
+        delete: ( domain, key ) ->
+          # nop
+
+      client_id = Heron.Util.generate_id()
+
+      @dictionary = new Heron.Dictionary(
+        receiver:  @receiver
+        client_id: client_id
+        debug:     true
+      )
+      @thingyverse = new Heron.Thingyverse()
+      root = this
+      @thingyverse.define(
+        'example',
+        ['radius', 'fill', 'stroke'],
+        {loc: ['x', 'y']},
+        ( attrs ) ->
+          root.latest = this
+          @circle = new Kinetic.Circle(
+            x:          attrs.x      ? 200
+            y:          attrs.y      ? 200
+            radius:     attrs.radius ? 20
+            fill:       attrs.fill   ? 'red'
+            stroke:     attrs.stroke ? 'black'
+            strokeWidth: 2
+            draggable: true
+          )
+
+          @circle.on('dragend',
+            (e) =>
+              @set(
+                x: e.offsetX
+                y: e.offsetY
+              )
+          )
+
+          layer.add(@circle)
+          layer.draw()
+
+          # delegate
+          set: ( thingy, attrs, local_data ) ->
+            thingy.circle.setAttrs( attrs )
+            layer.draw()
+          get: ( thingy, attr_keys... ) ->
+            thingy.circle.getAttrs()
+          remove: ( thingy, local_data ) ->
+            thingy.circle.remove()
+            layer.draw()
+      )
+      @comet = new Heron.Comet(
+        client_id:  client_id
+        on_message: ( msg ) =>
+          @dictionary.receive(msg)
+        on_verbose: ( text ) ->
+          console.info( text )
+      )
+
+      $(document).on('Heron.Comet:connected', =>
+        @thingyverse.connect( @dictionary, 'example_thingy' )
+        alert("Connected")
+      )
+
+      @comet.connect()
+
+      @make_red  = => @thingyverse.create( 'example', fill: 'red'  )
+      @make_blue = => @thingyverse.create( 'example', fill: 'blue' )
+  </script>
+</head>
+
+<body onload="on_load()">
+  <div id="stage"></div>
+  <p onclick='make_red();'>click here make red</p>
+  <p onclick='make_blue();'>click here to make blue</p>
+  <p>To use run comet_server.rb and open <a href=http://127.0.0.1:4567>http://127.0.0.1:4567</a> in two or more windows.  The red ball can be moved around on any window and that movement will be reflected in the other windows.  Look at the console for additional details.</p>
+</body>
+
+</html>

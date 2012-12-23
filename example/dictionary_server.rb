@@ -49,7 +49,7 @@ class DictionaryServer < Sinatra::Base
   comet.on_disconnect = -> client_id { puts "COMET DISCONNECT #{client_id}" }
 
   get '/' do
-    redirect '/example/dictionary.html'
+    redirect '/example/dictionary_thingy.html'
   end
 
   at_exit { dictionary.shutdown }
