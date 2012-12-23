@@ -18,6 +18,8 @@ Heron = @Heron ?= {}
 
 c_max_reconnect_retry = 1
 
+# Wrapper for receiver to handle reconnect.
+# @private
 reconnect = ->
   receive.call( this )
   # This will flush out any already active receive on the server.
@@ -27,6 +29,8 @@ reconnect = ->
   )
   null
 
+# Receiver a message.
+# @private
 receive = ->
   return null if ! @_.connected
 

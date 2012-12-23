@@ -15,6 +15,7 @@
 assert = require( "chai" ).assert
 V = require( "../vector.js" ).Heron.Vector
 
+# Assert that a and b are within 0.001 of each other.
 assert_float = ( a, b ) ->
 	delta = Math.abs( a - b )
 	assert.isTrue( delta < 0.001, "expected difference to be small but was: #{delta}")
