@@ -24,7 +24,7 @@
 #
 # Author:: Christopher Alfeld (calfeld@calfeld.net)
 
-require 'server/dictionary'
+require File.join(File.dirname(__FILE__), 'dictionary')
 require 'json'
 
 module Heron

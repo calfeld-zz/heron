@@ -24,7 +24,7 @@
 #
 # Author::    Christopher Alfeld (calfeld@calfeld.net)
 
-require 'server/comet'
+require File.join(File.dirname(__FILE__), 'comet')
 
 module Heron
 
