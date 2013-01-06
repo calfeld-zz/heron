@@ -1,4 +1,4 @@
-# Copyright 2010-2012 Christopher Alfeld
+# Copyright 2010-2013 Christopher Alfeld
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -29,14 +29,14 @@ map_throw = -> throw "Do not use Heron.Map directly."
 #
 # The main advantage over a standard javascript object is that all accesses
 # pass through a function, allowing computation or side effects.  See, for
-# example, {Heron.ParametricMap}.
+# example, {Heron.Map.ParametricMap}.
 #
 # Any parameter in Heron that asks for a {Heron.Map} is duck typed and asking
 # for an object that defines {#get}, {#gets}, {#geta}, {#keys}, and, if it
 # needs a writable map, {#set}.
 #
 # @author Christopher Alfeld (calfeld@calfeld.net)
-# @copyright 2012 Christopher Alfeld
+# @copyright 2013 Christopher Alfeld
 class Heron.Map
   # Access keys as object.
   #
