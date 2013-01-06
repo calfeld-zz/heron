@@ -41,6 +41,21 @@
       return _results;
     };
 
+    Util.extend = function(obj, mixin) {
+      var method, name;
+      for (name in mixin) {
+        method = mixin[name];
+        if (!(obj[name] != null)) {
+          obj[name] = method;
+        }
+      }
+      return obj;
+    };
+
+    Util.include = function(klass, mixin) {
+      return this.extend(klass.prototype, mixin);
+    };
+
     return Util;
 
   })();

@@ -49,3 +49,29 @@ class Heron.Util
     for own k of obj
       k
 
+  # Add members of `mixin` to obj.
+  #
+  # Use to mixin class members.
+  #
+  # See The Little Book on CoffeeScript.  But not differences.
+  #
+  # @param [Object] obj   Object to mix into.
+  # @param [Object] mixin Mixin to mix in.
+  # @return [Object] obj
+  @extend = (obj, mixin) ->
+    for name, method of mixin
+      obj[name] = method if ! obj[name]?
+    obj
+
+  # Add member of `mixin` to prototype of `klass`.
+  #
+  # Use to mixin instance members.
+  #
+  # See The Little Book on CoffeeScript.
+  #
+  # @param [Object] klass   Object to mix into.
+  # @param [Object] mixin Mixin to mix in.
+  # @return [Object] klass
+  @include = (klass, mixin) ->
+    @extend klass.prototype, mixin
+
