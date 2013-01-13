@@ -19,20 +19,6 @@
       # Will add circle when synced.
       stage.add(layer)
 
-      @receiver =
-        create: ( domain, key, value ) ->
-          @update( domain, key, value )
-        update: ( domain, key, value ) ->
-          if key == 'loc'
-            circle.setX(value.x)
-            circle.setY(value.y)
-            stage.draw()
-          else if key == '_synced'
-            layer.add(circle)
-            stage.draw()
-        delete: ( domain, key ) ->
-          # nop
-
       client_id = Heron.Util.generate_id()
 
       @dictionary = new Heron.Dictionary(
