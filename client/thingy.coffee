@@ -161,6 +161,7 @@ class Receiver
       for id, info of @_.partials
         make( id, info )
       @_.partials = {}
+      @_.on_sync()
     else if key == '%create'
       id = value
       info = @_.partials[ id ]
@@ -601,10 +602,16 @@ class Heron.Thingyverse
   #
   # @param [Heron.Dictionary] dictionary Dictionary to connect to.
   # @param [String]           domain     Domain of dictionary to use.
+  # @param [Function]         on_sync    Function to call once in sync.
+  #   Default: nop
   # @return [Heron.Thingy] this
-  connect: ( dictionary, domain ) ->
+  # @throw [String] if called a second time.
+  connect: ( dictionary, domain, on_sync = -> ) ->
+    if @_.dictionary?
+      throw "Already connected to a dictionary."
     @_.dictionary = dictionary
     @_.domain     = domain
+    @_.on_sync    = on_sync
 
     # Subscribe to domain.
     receiver = new Receiver( this )
