@@ -116,10 +116,21 @@ send_create = ( thingy ) ->
 # @throw [String] If `typename` isn't known.
 # @throw [String] If `id` already exists.
 make_thingy = ( typename, id, attrs, local_data ) ->
+  if ! typename?
+    @_.on_error( "Missing typename for thingy: #{id}" )
   @_.make_guard = true
   thingy = new Heron.Thingy( this, typename, id, attrs, local_data )
   @_.make_guard = false
   thingy
+
+# Create all partials.
+#
+# @return [null] null
+flush_partials = ->
+  for id, info of @_.partials
+    @_.make_thingy( info.typename, id, info.attrs, false )
+  @_.partials = {}
+  null
 
 # Receiver class.
 #
@@ -151,25 +162,25 @@ class Receiver
     if domain != @_.domain
       @_.on_error( "Received message for unknown domain: #{domain}." )
 
-    make = ( id, info ) =>
-      if ! info.typename?
-        @_.on_error( "Missing typename for thingy: #{id}" )
-      else
-        @_.make_thingy( info.typename, id, info.attrs, false )
-
     if key == '_synced'
-      for id, info of @_.partials
-        make( id, info )
-      @_.partials = {}
+      if @_.ready
+        @_.flush_partials()
+      else
+        for k of partials
+          @_.partials_to_create[ k ] = true
       @_.on_sync()
     else if key == '%create'
-      id = value
-      info = @_.partials[ id ]
-      if ! info?
-        @_.on_error( "Missing everything for thingy: #{id}" )
-      else
-        make( id, info )
-      delete @_.partials[ id ]
+      if @_.ready
+        id = value
+        info = @_.partials[ id ]
+        if ! info?
+          @_.on_error( "Missing everything for thingy: #{id}" )
+        else
+          if @_.ready
+            @_.make_thingy( info.typename, id, info.attrs, false )
+          else
+            @_.partials_to_create[ id ] = true
+        delete @_.partials[ id ]
     else if key[0] != '_'
       # Extract id and subkey from key.
       [ id, subkey ] = split_key( key )
@@ -211,8 +222,15 @@ class Receiver
       @_.on_error( "Received message for unknown domain: #{domain}." )
       return null
 
+    if subkey == '_'
+      value = value.attrs
+
     if ! thingy_data?
-      # Discard.
+      # Check partials.
+      if @_.partials[ id ]
+        for k, v of value
+          @_.partials[ id ][ k ] = v
+      # Else discard
       return null
 
     type_data = @_.per_type[ thingy_data.thingy.typename() ]
@@ -220,9 +238,6 @@ class Receiver
     if ! type_data.subkeys[ subkey ]?
       @_.on_error( "Received update for non-existent subkey #{subkey}: #{key}" )
       return null
-
-    if subkey == '_'
-      value = value.attrs
 
     thingy_data.delegate.set( thingy_data.thingy, value, false )
 
@@ -244,7 +259,11 @@ class Receiver
       return null
 
     if ! thingy_data?
-      # Discard.
+      # Ensure not in partials.
+      delete @_.partials[ id ]
+      delete @_.partials_to_create[ id ]
+
+      # Else Discard.
       return null
 
     thingy_data.delegate.remove( thingy_data.thingy, false )
@@ -553,13 +572,19 @@ class Heron.Thingyverse
   #   on receiver errors.  Defaults to throw exception.  It may be useful to
   #   change this, to prevent a single malformed dictionary entry from
   #   disrupting an entire batch.
+  # @option config [Boolean] ready If false, thingy attributes will be
+  #   tracked, but no thingies will be created.  This behavior is useful for
+  #   preloading thingies before the context they need is available.  See
+  #   {#ready}.  Default: true.
   constructor: ( config = {} ) ->
     # Set up private data
     @_ =
       # Configuration parameters.
       dictionary: null
       domain:     null
+      on_sync:    ->
       on_error:   config.on_error ? ( s ) -> throw s
+      ready:      config.ready    ? true
 
       # Map of id to thingy:, delegate:
       per_thingy: {}
@@ -580,6 +605,11 @@ class Heron.Thingyverse
       # Map of id to typename and attrs.
       partials: {}
 
+      # When thingyverse is not ready, this acts as a set of which partials
+      # are ready to be created.  When thingyverse is ready, this is not
+      # used.
+      partials_to_create: {}
+
       # Private methods.  See above for documentation.
       send_update_subkey: ( thingy, subkey ) =>
         send_update_subkey.call( this, thingy, subkey )
@@ -587,6 +617,8 @@ class Heron.Thingyverse
         send_create.call( this, thingy )
       make_thingy: ( typename, id, domain, attrs, local_data ) =>
         make_thingy.call( this, typename, id, domain, attrs, local_data )
+      flush_partials: =>
+        flush_partials.call( this )
 
   # Dictionary.  Null if not connected.
   # @return [Heron.Dictionary] Dictionary used.
@@ -697,7 +729,10 @@ class Heron.Thingyverse
   # @param [Object] local_data Local data.
   # @return [thingy] Newly created thingy.
   # @throw [String] if not connected.
+  # @throw [String] if not ready (See {#ready}).
   create: ( typename, attrs = {}, local_data = true ) ->
+    if ! @_.ready
+      throw "Call #ready first."
     if ! @_.dictionary
       throw "Call #connect first."
     id = Heron.Util.generate_id()
@@ -710,6 +745,29 @@ class Heron.Thingyverse
       @_.send_create( thingy )
 
     thingy
+
+  # Create all pending thingies and allow future creation.
+  #
+  # Indicates that the caller is ready for thingies to be created.  Calling
+  # this is usually unnecessary, as, by default, a thingyverse is created
+  # ready.  However, if ready was set to false at construction, you should
+  # call this when you are ready for thingies to be created.
+  #
+  # @throw [String] if already ready.
+  # @return [Heron.Thingyverse] this
+  ready: ->
+    if @_.ready
+      throw "Already ready."
+
+    for id of @_.partials_to_create
+      info = @_.partials[ id ]
+      if ! info?
+        throw "Insanity error: Partial to create but no info!"
+      @_.make_thingy( info.typename, id, info.attrs, false )
+      delete @_.partials[ id ]
+      delete @_.partials_to_create[ id ]
+
+    this
 
   # See {Heron.Dictionary#batch}.
   batch: ( f ) ->
