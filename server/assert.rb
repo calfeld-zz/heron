@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby1.9
 
-# Copyright 2010-2012 Christopher Alfeld
+# Copyright 2010-2013 Christopher Alfeld
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
