@@ -47,7 +47,7 @@ receive = ->
       @_.verbose( "disconnected; retry count exceeded." )
       @_.connected = false
       @_.current_receive = null
-      jQuery(document).trigger( "Heron.Comet:lost", this )
+      @_.on_lost?()
 
   @_.current_receive = jQuery.get(
     @_.path + "/receive"
@@ -63,7 +63,7 @@ receive = ->
           @_.reconnect_retry = 0
         if transport.responseText != ""
           @_.verbose( transport.responseText )
-          @_.on_message( transport.responseText, this )
+          @_.on_message?( transport.responseText, this )
         setTimeout(
           => receive.call( this ),
           0
@@ -81,13 +81,6 @@ receive = ->
 # There are a number of additional options and hnalders available.  See the
 # constructor for details.
 #
-# The following events are fired on document.  In all cases, memo will be
-# Heron.Comet instance.
-#
-# - `Heron.Comet:connected`    Fired on connection.
-# - `Heron.Comet:disconnected` Fired on disconnect.
-# - `Heron.Comet:lost`         Fired on connection lost.
-#
 # @author Christopher Alfeld (calfeld@calfeld.net)
 # @copyright 2010-2012 Christopher Alfeld
 class Heron.Comet
@@ -97,25 +90,34 @@ class Heron.Comet
   # @param [object] config Configuration.
   # @option config [string]   path          Path to Comet controller.
   #   Default: "/comet"
-  # @option config [function] on_message   Function to call when message
-  #   received.  Passed message and this.
-  # @option config [function] on_exception Function to call if an exception
+  # @option config [function] on_message    Function to call when message
+  #   received.  Passed message and this.  Defaults to null.
+  # @option config [function] on_exception  Function to call if an exception
   #   is thrown while processing the message.  Passed exception, text,
   #   and this.  Defaults to a verbose message.
-  # @option config [function] on_verbose   Function to call with verbose
-  #   messages and this.  Defaults to discard.
+  # @option config [function] on_verbose    Function to call with verbose
+  #   messages and this.  Defaults to null.
+  # @option config [function] on_loss       Function to call if connection is
+  #   lost.  Defaults to null.
+  # @option config [function] on_connect    Function to call on connected.
+  #   Defaults to null.
+  # @option config [function] on_disconnect Function to call on disconnect.
+  #   Defaults to null.
   # @option config [string]   client_id    Client ID.  Defaults to
   #   {Heron.Util.generate_id}
   constructor: ( config ) ->
     @_ =
       path:            config.path         ? "/comet"
-      on_message:      config.on_message   ? ->
-      on_verbose:      config.on_verbose   ? ->
+      on_message:      config.on_message
+      on_verbose:      config.on_verbose
+      on_loss:         config.on_loss
+      on_connect:      config.on_connect
+      on_disconnect:   config.on_disconnect
       on_exception:    config.on_exception ? ( e, text, comet ) =>
         @_.verbose( "Exception: #{text}" )
       client_id:       config.client_id    ? Heron.Util.generate_id()
       connected:       false
-      verbose:         ( s ) => @_.on_verbose( "comet: #{s}", this )
+      verbose:         ( s ) => @_.on_verbose?( "comet: #{s}", this )
       reconnect_retry: 0
 
     @_.verbose( "initialized" )
@@ -143,7 +145,7 @@ class Heron.Comet
         @_.connected = true
         receive.call( this )
         @_.verbose( "connected" )
-        jQuery(document).trigger( "Heron.Comet:connected", this )
+        @_.on_connect?( this )
     )
     this
 
@@ -161,7 +163,7 @@ class Heron.Comet
         client_id: @_.client_id,
         =>
           @_.verbose("disconnected")
-          jQuery(document).trigger( "Heron.Comet:disconnected", this )
+          @_.on_disconnect( this )
       )
     this
 

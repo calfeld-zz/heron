@@ -21,6 +21,7 @@
       return null;
     }
     failure = function() {
+      var _base;
       if (!_this._.connected) {
         return;
       }
@@ -34,12 +35,13 @@
         _this._.verbose("disconnected; retry count exceeded.");
         _this._.connected = false;
         _this._.current_receive = null;
-        return jQuery(document).trigger("Heron.Comet:lost", _this);
+        return typeof (_base = _this._).on_lost === "function" ? _base.on_lost() : void 0;
       }
     };
     this._.current_receive = jQuery.get(this._.path + "/receive", {
       client_id: this._.client_id
     }, function(data, textStatus, transport) {
+      var _base;
       if (!_this._.connected) {
         return;
       }
@@ -52,7 +54,9 @@
         }
         if (transport.responseText !== "") {
           _this._.verbose(transport.responseText);
-          _this._.on_message(transport.responseText, _this);
+          if (typeof (_base = _this._).on_message === "function") {
+            _base.on_message(transport.responseText, _this);
+          }
         }
         return setTimeout(function() {
           return receive.call(_this);
@@ -65,19 +69,23 @@
   Heron.Comet = (function() {
 
     function Comet(config) {
-      var _ref1, _ref2, _ref3, _ref4, _ref5,
+      var _ref1, _ref2, _ref3,
         _this = this;
       this._ = {
         path: (_ref1 = config.path) != null ? _ref1 : "/comet",
-        on_message: (_ref2 = config.on_message) != null ? _ref2 : function() {},
-        on_verbose: (_ref3 = config.on_verbose) != null ? _ref3 : function() {},
-        on_exception: (_ref4 = config.on_exception) != null ? _ref4 : function(e, text, comet) {
+        on_message: config.on_message,
+        on_verbose: config.on_verbose,
+        on_loss: config.on_loss,
+        on_connect: config.on_connect,
+        on_disconnect: config.on_disconnect,
+        on_exception: (_ref2 = config.on_exception) != null ? _ref2 : function(e, text, comet) {
           return _this._.verbose("Exception: " + text);
         },
-        client_id: (_ref5 = config.client_id) != null ? _ref5 : Heron.Util.generate_id(),
+        client_id: (_ref3 = config.client_id) != null ? _ref3 : Heron.Util.generate_id(),
         connected: false,
         verbose: function(s) {
-          return _this._.on_verbose("comet: " + s, _this);
+          var _base;
+          return typeof (_base = _this._).on_verbose === "function" ? _base.on_verbose("comet: " + s, _this) : void 0;
         },
         reconnect_retry: 0
       };
@@ -97,10 +105,11 @@
       jQuery.get(this._.path + "/connect", {
         client_id: this._.client_id
       }, function() {
+        var _base;
         _this._.connected = true;
         receive.call(_this);
         _this._.verbose("connected");
-        return jQuery(document).trigger("Heron.Comet:connected", _this);
+        return typeof (_base = _this._).on_connect === "function" ? _base.on_connect(_this) : void 0;
       });
       return this;
     };
@@ -117,7 +126,7 @@
           client_id: this._.client_id
         }, function() {
           _this._.verbose("disconnected");
-          return jQuery(document).trigger("Heron.Comet:disconnected", _this);
+          return _this._.on_disconnect(_this);
         });
       }
       return this;

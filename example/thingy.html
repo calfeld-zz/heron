@@ -71,11 +71,9 @@
           @dictionary.receive(msg)
         on_verbose: ( text ) ->
           console.info( text )
-      )
-
-      $(document).on('Heron.Comet:connected', =>
-        @thingyverse.connect( @dictionary, 'example_thingy' )
-        alert("Connected")
+        on_connect: =>
+          @thingyverse.connect( @dictionary, 'example_thingy' )
+          alert("Connected")
       )
 
       @comet.connect()

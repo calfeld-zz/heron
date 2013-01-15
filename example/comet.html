@@ -34,10 +34,6 @@
       layer.add(circle)
       stage.add(layer)
 
-      $(document).on('Heron.Comet:lost', -> alert("Comet Lost"))
-      $(document).on('Heron.Comet:connected', -> alert("Comet Connected"))
-      $(document).on('Heron.Comet:disconnected', -> alert("Comet Disconnect"))
-
       @comet = new Heron.Comet(
         on_message: (message) ->
           obj = jQuery.parseJSON(message)[0]
@@ -47,6 +43,9 @@
           stage.draw()
         on_verbose: ( text ) ->
           console.info( text )
+        on_loss:       -> alert("Comet Lost")
+        on_connect:    -> alert("Comet Connected")
+        on_disconnect: -> alert("Comet Disconnected")
       )
       @comet.connect()
   </script>
