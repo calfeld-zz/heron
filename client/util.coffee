@@ -69,9 +69,26 @@ class Heron.Util
   #
   # See The Little Book on CoffeeScript.
   #
-  # @param [Object] klass   Object to mix into.
+  # @param [Object] klass Object to mix into.
   # @param [Object] mixin Mixin to mix in.
   # @return [Object] klass
   @include = (klass, mixin) ->
     @extend klass.prototype, mixin
+
+  # True iff object has no members.
+  #
+  # @param [Object] object
+  # @return [Boolean] true iff object is empty.
+  @empty = (object) ->
+    for k of object
+      return false
+    true
+
+  # Return a [key, value] of object.
+  #
+  # @param [Object] object
+  # @return [Array<String,Object>] A key and value of object.
+  @any = (object) ->
+    for k, v of object
+      return [k, v]
 
