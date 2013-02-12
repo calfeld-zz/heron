@@ -78,11 +78,11 @@ receive = ->
 # a message handler on construction. After instantiating, call {#connect}.
 # Any messages from the server will then be passed to the message handler.
 #
-# There are a number of additional options and hnalders available.  See the
+# There are a number of additional options and handlers available.  See the
 # constructor for details.
 #
 # @author Christopher Alfeld (calfeld@calfeld.net)
-# @copyright 2010-2012 Christopher Alfeld
+# @copyright 2010-2013 Christopher Alfeld
 class Heron.Comet
 
   # Constructor
