@@ -166,7 +166,7 @@ class Receiver
       if @_.ready
         @_.flush_partials()
       else
-        for k of partials
+        for k of @_.partials
           @_.partials_to_create[ k ] = true
       @_.on_sync()
     else if key == '%create'
