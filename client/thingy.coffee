@@ -305,6 +305,8 @@ class Heron.Thingy
     if thingyverse._.per_thingy[ id ]?
       throw( "Heron.Thingy: Thingy #{id} already exists." )
 
+    after_construction_functions = []
+
     @_ =
       thingyverse: thingyverse
       typename:    typename
@@ -315,11 +317,16 @@ class Heron.Thingy
         if @_.removed
           throw( "Heron.Thingy: Trying to do something with removed thingy #{@id()}" )
 
+    @after_construction = ( f ) -> after_construction_functions.push( f )
     @_.delegate = @_.type_data.initializer.call( this, attrs, local_data )
+    delete @after_construction
 
     thingyverse._.per_thingy[ id ] =
       thingy:   this
       delegate: @_.delegate
+
+    for f in after_construction_functions
+      f.call( this )
 
   # ID.
   # @return [String] ID.
@@ -552,7 +559,12 @@ class Heron.ThingyDelegate
 #
 # Every initializer should be a function which takes two arguments -- `attrs`
 # and `local_data` -- and returns a delegate.  The `this` of the initializer
-# will be set to the thingy object.
+# will be set to the thingy object.  Initializers are run before the thingy
+# is fully created, so operations such as {#get} and {#set} will not work
+# (there is no delegate yet).  To aid with this, a special member
+# `@after_construction` is defined while the initializer is being called.
+# `@after_construction` takes a single parameter, a function, and will call
+# that function once the thingy is created.  It may be called multiple times.
 #
 # As convenience and for future compatibility, {Heron.Thingyverse} defines
 # {#batch}, {#begin}, and {#finish}, to provide batch semantics.  At present,
@@ -724,7 +736,7 @@ class Heron.Thingyverse
   #
   # All of the above occurs in a batch.
   #
-  # @param [String] typename   Name of a Thingy type as definede by {#define}.
+  # @param [String] typename   Name of a Thingy type as defined by {#define}.
   # @param [Object] attrs      Initial attributes.
   # @param [Object] local_data Local data.
   # @return [thingy] Newly created thingy.
