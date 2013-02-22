@@ -66,7 +66,7 @@ module Heron
           now-@@debug_last,
           yield
         ]
-        @debug_last = now
+        @@debug_last = now
       end
     end
 
