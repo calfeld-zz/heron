@@ -50,7 +50,7 @@ class Heron.Index
     for k of extractors
       do (k) =>
         @_.indices[k] = {}
-        this["each_#{k}"] = (f) ->
+        this["each_#{k}"] = (f = (x) -> x) ->
           f(v) for v of @_.indices[k]
         this["with_#{k}"] = (value) ->
           Heron.Util.keys(@_.indices[k][value])
