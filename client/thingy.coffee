@@ -435,15 +435,15 @@ class Heron.Thingy
     @_.delegate.remove( this, local_data )
 
     # Remote subkeys.
-    prefix = id
+    prefix = @id()
     @_.thingyverse.batch =>
-      for subkey of type_data.subkeys
-        key = subkey_key( id, subkey )
-        @_.thingyverse._.dictionary.delete( domain, key )
+      for subkey of @_.type_data.subkeys
+        key = subkey_key( @id(), subkey )
+        @_.thingyverse._.dictionary.delete( @_.thingyverse.domain(), key )
 
     @_.removed = true
 
-    delete @_.thingyverse._.per_thingy[ id ]
+    delete @_.thingyverse._.per_thingy[ @id() ]
 
     null
 
