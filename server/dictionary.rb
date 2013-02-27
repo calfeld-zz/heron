@@ -217,6 +217,17 @@ module Heron
       issue( :subscribe, domain, client_id )
     end
 
+    # Handle client disconnect.  Call this from comet disconnect.
+    #
+    # @param [String] client_id Client that disconnected
+    def disconnected( client_id )
+      @on_verbose.( "DISCONNECTED #{client_id}" )
+
+      @domain_workers.keys.each do |domain|
+        issue( :unsubscribe, domain, client_id )
+      end
+    end
+
     private
 
     # Per-domain info.
@@ -343,6 +354,10 @@ module Heron
           @on_verbose.( "Checking #{info.clients.size} clients." )
           info.clients = info.clients.select( &@check ).to_set
           @on_verbose.( "Done; now have #{info.clients.size} clients." )
+
+        when :unsubscribe then
+          client_id = metamessage[1]
+          lost_client.(client_id)
 
         when :subscribe then
           client_id = metamessage[1]
