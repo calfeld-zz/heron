@@ -53,7 +53,7 @@ class Heron.Index
         this["each_#{k}"] = (f = (x) -> x) ->
           f(v) for v of @_.indices[k]
         this["with_#{k}"] = (value) ->
-          Heron.Util.keys(@_.indices[k][value])
+          @_.indices[k][value]
 
   # Add an object to the index.
   #
@@ -64,7 +64,7 @@ class Heron.Index
   add: (obj) ->
     for k, e of @_.extractors
       v = e(obj)
-      (@_.indices[k][v] ?= {})[obj] = true
+      (@_.indices[k][v] ?= []).push(obj)
     this
 
   # Remove an object from the index.
@@ -77,7 +77,11 @@ class Heron.Index
     for k, e of @_.extractors
       v = e(obj)
       if @_.indices[k][v]?
-        delete @_.indices[k][v][obj]
+        new_index = []
+        for other in @_.indices[k][v]
+          if obj != other
+            new_index.push(other)
+        @_.indices[k][v] = new_index
         if Heron.Util.empty(@_.indices[k][v])
           delete @_.indices[k][v]
     this
@@ -94,7 +98,7 @@ class Heron.Index
     r = []
     index = Heron.Util.any(@_.indices)[1]
     for v, objs of index
-      for obj of obj
+      for obj in objs
         r.push(f(obj))
     r
 
