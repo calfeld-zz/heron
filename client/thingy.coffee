@@ -83,6 +83,23 @@ send_update_subkey = ( thingy, subkey ) ->
 
   null
 
+# Send create message for a subkey.
+#
+send_create_subkey = ( thingy, subkey ) ->
+  typename  = thingy.typename()
+  id        = thingy.id()
+  type_data = @_.per_type[ typename ]
+
+  attr_keys = type_data.subkeys[ subkey ]
+  key   = subkey_key( id, subkey )
+  value = only_keys( thingy.get( attr_keys... ), attr_keys )
+  if subkey == '_'
+    value =
+      typename: typename
+      attrs: value
+  @_.dictionary.create( @_.domain, key, value )
+
+
 # Send create message for a thingy.
 #
 # @param [thingy] thingy Thingy to send create for.
@@ -94,13 +111,7 @@ send_create = ( thingy ) ->
 
   @_.dictionary.batch =>
     for subkey, attr_keys of type_data.subkeys
-      key   = subkey_key( id, subkey )
-      value = only_keys( thingy.get( attr_keys... ), attr_keys )
-      if subkey == '_'
-        value =
-          typename: typename
-          attrs: value
-      @_.dictionary.create( @_.domain, key, value )
+      @_.send_create_subkey( thingy, subkey )
     # %create tells others to create the thingy.
     @_.dictionary.create( @_.domain, '%create', id )
 
@@ -108,19 +119,42 @@ send_create = ( thingy ) ->
 
 # Construct a thingy.
 #
-# @param [String] typename   Name of thingy type.
-# @param [String] id         ID.
-# @param [Object] attrs      Initial attributes.
-# @param [Object] local_data Local data, if any.
+# @param [String]        typename   Name of thingy type.
+# @param [String]        id         ID.
+# @param [Object]        attrs      Initial attributes.
+# @param [Object]        local_data Local data, if any.
+# @param [Array<String>] subkeys    Which subkeys were received. null
+#   for local creation.
 # @return [thingy] New thingy.
 # @throw [String] If `typename` isn't known.
 # @throw [String] If `id` already exists.
-make_thingy = ( typename, id, attrs, local_data ) ->
+make_thingy = ( typename, id, attrs, local_data, subkeys = null ) ->
   if ! typename?
     @_.on_error( "Missing typename for thingy: #{id}" )
   @_.make_guard = true
   thingy = new Heron.Thingy( this, typename, id, attrs, local_data )
   @_.make_guard = false
+
+  # Subkey reconciliation.  Need to create any subkeys in definition but not
+  # subkeys and remove any in subkeys but not definition.
+  if subkeys?
+    real_subkeys = {}
+    real_subkeys[ subkey ] = true for subkey of @_.per_type[ typename ].subkeys
+    to_delete = []
+    for subkey in subkeys
+      if real_subkeys[ subkey ]
+        delete real_subkeys[ subkey ]
+      else
+        to_delete.push( subkey )
+    to_push = Heron.Util.keys( real_subkeys )
+
+    @_.dictionary.batch( =>
+      for subkey in to_delete
+        @_.dictionary.delete( @domain(), subkey )
+      for subkey in to_push
+        @_.send_create_subkey( thingy, subkey )
+    )
+
   thingy
 
 # Create all partials.
@@ -128,8 +162,9 @@ make_thingy = ( typename, id, attrs, local_data ) ->
 # @return [null] null
 flush_partials = ->
   for id, info of @_.partials
-    @_.make_thingy( info.typename, id, info.attrs, false )
+    @_.make_thingy( info.typename, id, info.attrs, false, @_.partials_subkeys[ id ] )
   @_.partials = {}
+  @_.partials_subkeys = {}
   null
 
 # Receiver class.
@@ -177,15 +212,22 @@ class Receiver
           @_.on_error( "Missing everything for thingy: #{id}" )
         else
           if @_.ready
-            @_.make_thingy( info.typename, id, info.attrs, false )
+            @_.make_thingy( info.typename, id, info.attrs, false, @_.partials_subkeys[ id ] )
           else
             @_.partials_to_create[ id ] = true
         delete @_.partials[ id ]
+        delete @_.partials_subkeys[ id ]
     else if key[0] != '_'
       # Extract id and subkey from key.
       [ id, subkey ] = split_key( key )
+      if @_.per_thingy[ id ]?
+        # Ignore creates for already existant thingies.  Might be part of
+        # subkey reconciliation.
+        return
+
       attrs = value
       @_.partials[ id ] ?= {}
+      (@_.partials_subkeys[ id ] ?= []).push( subkey )
       if subkey == '_'
         if ! value.typename?
           @_.on_error( "Cannot understand basekey #{key}.  No typename." )
@@ -265,6 +307,9 @@ class Receiver
 
       # Else Discard.
       return null
+
+    # If not base key, ignore.
+    return null if subkey != '_'
 
     thingy_data.delegate.remove( thingy_data.thingy, false )
     delete @_.per_thingy[ id ]
@@ -617,6 +662,13 @@ class Heron.Thingyverse
       # Map of id to typename and attrs.
       partials: {}
 
+      # This stores the subkeys of each partial.  It is used to reconcile
+      # dictionary subkeys with definitions subkeys when the definitions
+      # change.
+      #
+      # Map of id to array of subkeys.
+      partials_subkeys: {}
+
       # When thingyverse is not ready, this acts as a set of which partials
       # are ready to be created.  When thingyverse is ready, this is not
       # used.
@@ -627,8 +679,10 @@ class Heron.Thingyverse
         send_update_subkey.call( this, thingy, subkey )
       send_create: ( thingy ) =>
         send_create.call( this, thingy )
-      make_thingy: ( typename, id, domain, attrs, local_data ) =>
-        make_thingy.call( this, typename, id, domain, attrs, local_data )
+      send_create_subkey: ( thingy, subkey ) =>
+        send_create_subkey.call( this, thingy, subkey )
+      make_thingy: ( typename, id, domain, attrs, local_data, subkeys ) =>
+        make_thingy.call( this, typename, id, domain, attrs, local_data, subkeys )
       flush_partials: =>
         flush_partials.call( this )
 
@@ -775,8 +829,9 @@ class Heron.Thingyverse
       info = @_.partials[ id ]
       if ! info?
         throw "Insanity error: Partial to create but no info!"
-      @_.make_thingy( info.typename, id, info.attrs, false )
+      @_.make_thingy( info.typename, id, info.attrs, false, @_.partials_subkeys[ id ] )
       delete @_.partials[ id ]
+      delete @_.partials_subkeys[ id ]
       delete @_.partials_to_create[ id ]
 
     this
