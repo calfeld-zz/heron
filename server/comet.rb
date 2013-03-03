@@ -58,7 +58,7 @@ module Heron
     private
 
     def hcd
-      if ! @@debug.nil?
+      if defined?(@@debug) && @@debug
         now = Time.now.to_f
         @@debug.puts "HCD(%d %.2f %.2f): %s" % [
           Thread.current.object_id,
