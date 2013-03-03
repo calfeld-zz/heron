@@ -70,30 +70,49 @@ module SinatraComet
 
     prefix = base.const_get(:COMET_PREFIX)
 
+    # Any CometError exception is probably due to a server restart which
+    # lost comet state.  Clients will need to reconnect.
+
     base.get prefix + '/connect' do
       client_id = params['client_id']
 
-      comet.connect(client_id)
+      begin
+        comet.connect(client_id)
+      rescue Heron::CometError
+        501
+      end
     end
 
     base.get prefix + '/disconnect' do
       client_id = params['client_id']
 
-      comet.disconnect(client_id)
+      begin
+        comet.disconnect(client_id)
+      rescue Heron::CometError
+        200
+      end
     end
 
     base.get prefix + '/receive' do
       client_id = params['client_id']
 
-      message = comet.receive(client_id)
-      message.nil? ? "" : message
+      begin
+        message = comet.receive(client_id)
+        message.nil? ? "" : message
+      rescue Heron::CometError
+        501
+      end
     end
 
     base.get prefix + '/flush' do
       client_id = params['client_id']
 
       # Flush any existing receive.
-      comet.queue(client_id, "")
+      begin
+        comet.queue(client_id, "")
+      rescue Heron::CometError
+        501
+      end
       200
     end
   end
