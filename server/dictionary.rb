@@ -436,15 +436,15 @@ module Heron
                   @on_error.( "Create message missing arguments: #{message.inspect}" )
                   next
                 end
-                @on_verbose.( "C #{domain}.#{key}" )
+                @on_verbose.( "C #{client_id}: #{domain}.#{key} = #{value}" )
               when 'update'
                 if ! value
                   @on_error.( "Update message missing arguments: #{message.inspect}" )
                   next
                 end
-                @on_verbose.( "U #{domain}.#{key} = #{value}" )
+                @on_verbose.( "U #{client_id}: #{domain}.#{key} = #{value}" )
               when 'delete'
-                @on_verbose.( "D #{domain}.#{key}" )
+                @on_verbose.( "D #{client_id}: #{domain}.#{key}" )
               else
                 @on_error.( "Unknown command: #{message.inspect}" )
               end
@@ -457,10 +457,10 @@ module Heron
                   next
                 end
                 if ! real_value.nil?
-                  @on_collision.( "C #{domain}.#{key} = #{value} [#{version}]" )
+                  @on_collision.( "C #{client_id}: #{domain}.#{key} = #{value} [#{version}]" )
                   next
                 end
-                @on_verbose.( "C #{domain}.#{key} [#{version}]" )
+                @on_verbose.( "C #{client_id}: #{domain}.#{key} = #{value} [#{version}]" )
                 create_q.execute( key, value, version )
               when 'update'
                 if ! value || ! version || ! previous_version
@@ -468,17 +468,17 @@ module Heron
                   next
                 end
                 if real_version != previous_version
-                  @on_collision.( "U #{domain}.#{key} [#{previous_version} vs. #{real_version}]" )
+                  @on_collision.( "U #{client_id}: #{domain}.#{key} [#{previous_version} vs. #{real_version}]" )
                   next
                 end
-                @on_verbose.( "U #{domain}.#{key} = #{value} [#{real_version} -> #{version}]" )
+                @on_verbose.( "U #{client_id}: #{domain}.#{key} = #{value} [#{real_version} -> #{version}]" )
                 update_q.execute( value, version, key )
               when 'delete'
                 if ! real_value
-                  @on_collision.( "D #{domain}.#{key}" )
+                  @on_collision.( "D #{client_id}: #{domain}.#{key}" )
                   next
                 end
-                @on_verbose.( "D #{domain}.#{key}" )
+                @on_verbose.( "D #{client_id}: #{domain}.#{key}" )
                 delete_q.execute( key )
               else
                 @on_error.( "Unknown command: #{message.inspect}" )
