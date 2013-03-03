@@ -53,7 +53,7 @@ class Heron.Index
         this["each_#{k}"] = (f = (x) -> x) ->
           f(v) for v of @_.indices[k]
         this["with_#{k}"] = (value) ->
-          @_.indices[k][value]
+          @_.indices[k][value] ? []
 
   # Add an object to the index.
   #
