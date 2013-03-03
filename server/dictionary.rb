@@ -351,9 +351,7 @@ module Heron
 
         case metacommand
         when :check_clients then
-          @on_verbose.( "Checking #{info.clients.size} clients." )
           info.clients = info.clients.select( &@check ).to_set
-          @on_verbose.( "Done; now have #{info.clients.size} clients." )
 
         when :unsubscribe then
           client_id = metamessage[1]
