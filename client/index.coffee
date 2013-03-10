@@ -102,6 +102,15 @@ class Heron.Index
         r.push(f(obj))
     r
 
+  # Is the index empty?
+  #
+  # @return [Boolean] True iff there is an object in the index.
+  empty: ->
+    for k, i of @_.indices
+      for v of i
+        return false
+    return true
+
 # Specialization of {Heron.Index} for objects.
 #
 # This index takes an array of key names on construction and pulls values
