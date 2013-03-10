@@ -204,6 +204,7 @@ class Receiver
         for k of @_.partials
           @_.partials_to_create[ k ] = true
       @_.on_sync()
+      @_.synced = true
     else if key == '%create'
       if @_.ready
         id = value
@@ -643,6 +644,9 @@ class Heron.Thingyverse
       on_error:   config.on_error ? ( s ) -> throw s
       ready:      config.ready    ? true
 
+      # True once synced.
+      synced:     false
+
       # Map of id to thingy:, delegate:
       per_thingy: {}
 
@@ -691,8 +695,12 @@ class Heron.Thingyverse
   dictionary: -> @_.dictionary
 
   # Domain.  Null if not connected.
-  # @return [Stirng] Domain used.
+  # @return [String] Domain used.
   domain: -> @_.domain
+
+  # Are we synced?
+  # @return [Boolean] true if synced.
+  synced: -> @_.synced
 
   # Connect to a dictionary.
   #
