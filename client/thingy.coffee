@@ -834,6 +834,8 @@ class Heron.Thingyverse
       delete @_.partials_subkeys[ id ]
       delete @_.partials_to_create[ id ]
 
+    @_.ready = true
+
     this
 
   # See {Heron.Dictionary#batch}.
