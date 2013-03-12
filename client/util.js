@@ -56,6 +56,22 @@
       return this.extend(klass.prototype, mixin);
     };
 
+    Util.empty = function(object) {
+      var k;
+      for (k in object) {
+        return false;
+      }
+      return true;
+    };
+
+    Util.any = function(object) {
+      var k, v;
+      for (k in object) {
+        v = object[k];
+        return [k, v];
+      }
+    };
+
     return Util;
 
   })();
