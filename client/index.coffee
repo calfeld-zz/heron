@@ -27,7 +27,7 @@ Heron = @Heron ?= {}
 #   @return [Array<any>] Return values of `f`.
 #
 # @method #with_K( v )
-#   Call f(o) for each object `o` with value `v` of key `K`.
+#   All items with value `v` of key `K`.
 #   @param [String] v Value of key `K` to look for keys of.
 #   @return [Array<any>] Objects with value `v` of key `K`.
 #
