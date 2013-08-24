@@ -51,7 +51,7 @@ class Heron.Enumeration
   set_index: ( index ) ->
     if index != @_.index
       @_.index = @i( index )
-      @on_set( @value(), index )
+      @_.on_set.fire( @value(), index )
     @value
 
   # Set value by value.
@@ -64,7 +64,7 @@ class Heron.Enumeration
     if i == -1
       throw "Value not found"
     else
-      return set_index( i )
+      return @set_index( i )
 
   # Current index.
   #
