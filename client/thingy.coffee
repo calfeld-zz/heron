@@ -465,7 +465,7 @@ class Heron.Thingy
 
   # Remove thingy.
   #
-  # Calls remove function of delegate and propegates to all other clients
+  # Calls remove function of delegate and propagates to all other clients
   # (except for `local_data` which will be false on remote clients).
   #
   # This thingy should not be used after removal.
@@ -786,7 +786,7 @@ class Heron.Thingyverse
 
   # Create a new thingy.
   #
-  # 1. A unqiue identifier is created.
+  # 1. A unique identifier is created.
   # 2. A {Heron.Thingy} is instantiated.  It performs step 3.
   # 3. The initializer is called with `this` set to the thingy object.  The
   #    result is set as the delegate.
