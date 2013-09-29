@@ -155,7 +155,7 @@ class Heron.Dictionary
     active_receivers = {}
     for message in messages
       ephemeral = @_.is_ephemeral( message.key )
-      receivers = @_.receivers[ message.domain ]
+      receivers = Heron.Util.values( @_.receivers[ message.domain ] )
       for r in receivers
         if ! active_receivers[ r ]?
           active_receivers[ r ] = true
@@ -243,11 +243,29 @@ class Heron.Dictionary
   # @return [Heron.Dictionary] this
   subscribe: ( domain, receiver ) ->
     throw 'Missing client_id.' if ! @_.client_id?
-    if ! @_.receivers[ domain ]
+
+    if ! @_.receivers[ domain ]? || Heron.Util.empty( @_.receivers[ domain ] )
       @_.pdebug( 'SUBSCRIBE', domain )
       @_.send_to_server( 'subscribe', domain: domain )
-      @_.receivers[ domain ] = []
-    @_.receivers[ domain ].push( receiver )
+      @_.receivers[ domain ] = {}
+    @_.receivers[ domain ][ @_.client_id ] = receiver
+    this
+
+  # Unsubscribe from a domain.
+  #
+  # Requires that `client_id` was configured on construction.
+  #
+  # @param [String] domain Domain to unsubscribe from.
+  # @return [Heron.Dictionary] this
+  unsubscribe: ( domain ) ->
+    throw 'Missing client_id.' if ! @_.client_id?
+    if ! @_.receivers[ domain ]? || ! @_.receivers[ domain ][ @_.client_id ]
+      throw 'Not subscribed.'
+    delete @_.receivers[ domain ][ @_.client_id ]
+
+    @_.pdebug( 'UNSUBSCRIBE', domain )
+    @_.send_to_server( 'unsubscribe', domain: domain )
+
     this
 
   # Update.

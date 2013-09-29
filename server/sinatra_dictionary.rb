@@ -94,6 +94,17 @@ module SinatraDictionary
       dictionary.subscribe( client_id, domain )
       200
     end
+
+    base.post prefix + '/unsubscribe' do
+      client_id = params[ 'client_id' ]
+      domain    = params[ 'domain' ]
+
+      raise "Missing client_id." if ! client_id
+      raise "Missing domain."  if ! domain
+
+      dictionary.unsubscribe( client_id, domain )
+      200
+    end
   end
 
   protected

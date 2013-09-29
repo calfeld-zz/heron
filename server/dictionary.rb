@@ -217,6 +217,16 @@ module Heron
       issue( :subscribe, domain, client_id )
     end
 
+    # Unsubscrbe a client from a domain.
+    #
+    # @param [String] client_id Client to unsubscribe.
+    # @param [String] domain    Domain to unsubscribe from.
+    def unsubscribe( client_id, domain )
+      @on_verbose.( "UNSUBSCRIBE #{client_id} #{domain}" )
+
+      issue( :unsubscribe, domain, client_id )
+    end
+
     # Handle client disconnect.  Call this from comet disconnect.
     #
     # @param [String] client_id Client that disconnected

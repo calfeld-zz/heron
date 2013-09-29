@@ -70,11 +70,17 @@
           alert("Connected")
       )
       @comet.connect()
+
+      @subscribe = => @dictionary.subscribe('example_dictionary', @receiver)
+      @unsubscribe = => @dictionary.unsubscribe('example_dictionary')
+
   </script>
 </head>
 
 <body onload="on_load()">
   <div id="stage"></div>
+  <p onclick='unsubscribe();'>click here to unsubscribe</p>
+  <p onclick='subscribe();'>click here to subscribe</p>
   <p>To use run dictionary_server.rb and open <a href=http://127.0.0.1:4567>http://127.0.0.1:4567/example/dictionary.html</a> in two or more windows.  The red ball can be moved around on any window and that movement will be reflected in the other windows.  Look at the console for additional details.</p>
 </body>
 
