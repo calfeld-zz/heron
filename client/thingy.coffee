@@ -498,24 +498,27 @@ class Heron.Thingy
 # When constructing a thingy delegate in an initializer, it should provide
 # the same methods as documented below.
 #
-# @method #set( attrs, local_data )
+# @method #set( thingy. attrs, local_data )
 #   Set attributes given in `attrs`.
-#   @param [Object] attrs      Attributes to set.
-#   @param [any]    local_data false for remote operations; true by default
-#     for local operations, but could be anything setter wants.
+#   @param [Heron.Thingy] thingy     Thingy.
+#   @param [Object]       attrs      Attributes to set.
+#   @param [any]          local_data false for remote operations; true by
+#     default for local operations, but could be anything setter wants.
 #   @return [any] Ignored.
 #
-# @method #get( attr_keys... )
+# @method #get( thingy, attr_keys... )
 #   Return an object with a member for each key in `attr_keys...` with value
 #   of that attribute.  Allowed to include additional keys.  Return value will
 #   be treated as immutable.
+#   @param [Heron.Thingy]  thingy       Thingy.
 #   @param [Array<String>] attr_keys... Keys to return.
 #   @return [Object] Object with values of each key in `attr_keys`.
 #
-# @method #remove( local_data )
+# @method #remove( thingy, local_data )
 #   Do anything necessary before thingy removal.
-#   @param [any] local_data false for remote operation; true by default for
-#     local operations, but could be anything remover wants.
+#   @param [Heron.Thingy] thingy     Thingy.
+#   @param [any]          local_data false for remote operation; true by
+#     default for local operations, but could be anything remover wants.
 #   @return [any] Ignored.
 class Heron.ThingyDelegate
 
@@ -722,6 +725,8 @@ class Heron.Thingyverse
     # Subscribe to domain.
     receiver = new Receiver( this )
     dictionary.subscribe( @_.domain, receiver )
+
+    this
 
   # Define a new Thingy Type.
   #
