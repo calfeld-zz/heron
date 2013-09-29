@@ -49,6 +49,14 @@ class Heron.Util
     for own k of obj
       k
 
+  # Return values of an object.
+  #
+  # @param [object] obj Object to list keys of.
+  # @return [array<string>] List of values in `obj`.
+  @values = ( obj ) ->
+    for own k, v of obj
+      v
+
   # Add members of `mixin` to obj.
   #
   # Use to mixin class members.
