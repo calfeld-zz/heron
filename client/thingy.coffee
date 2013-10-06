@@ -194,8 +194,9 @@ class Receiver
   # @param [Object] value  Value.
   # @return [null] null
   create: ( domain, key, value ) ->
-    if domain != @_.domain
-      @_.on_error( "Received message for unknown domain: #{domain}." )
+    if ! @_.dictionary? || domain != @_.domain
+      # Probably left over messages after disconnect.
+      return null
 
     if key == '_synced'
       if @_.ready
@@ -520,6 +521,12 @@ class Heron.Thingy
 #   @param [any]          local_data false for remote operation; true by
 #     default for local operations, but could be anything remover wants.
 #   @return [any] Ignored.
+#
+# @method #unload( thingy )
+#   Similar to #remove, but called when thingies are to be unloaded due to a
+#   disconnect.  May be omitted, in which case #remote will be used.
+#   @param [Heron.Thingy] thingy Thingy.
+#   @return [any] Ignored.
 class Heron.ThingyDelegate
 
 # Heron.Thingy, through {Heron.Thingyverse}, provides some basic object like
@@ -647,6 +654,9 @@ class Heron.Thingyverse
       on_error:   config.on_error ? ( s ) -> throw s
       ready:      config.ready    ? true
 
+      # Receiver being used.  Used for disconnect.
+      receiver:   null
+
       # True once synced.
       synced:     false
 
@@ -723,8 +733,39 @@ class Heron.Thingyverse
     @_.on_sync    = on_sync
 
     # Subscribe to domain.
-    receiver = new Receiver( this )
-    dictionary.subscribe( @_.domain, receiver )
+    @_.receiver = new Receiver( this )
+    dictionary.subscribe( @_.domain, @_.receiver )
+
+    this
+
+  # Disconnect from a dictionary.
+  #
+  # This will cause all thingies to be unloaded and the Thingyverse returned
+  # to a not-connected state.
+  #
+  # @option [Boolean] ready Reset ready condition to this value.
+  #   Default: true
+  disconnect: ( ready = true ) ->
+    if ! @_.dictionary?
+      throw "Not connected."
+
+    @_.dictionary.unsubscribe( @_.domain, @_.receiver )
+
+    for id, data of @_.per_thingy
+      if data.delegate.unload?
+        data.delegate.unload( data.thingy )
+      else
+        data.delegate.remove( data.thingy )
+    @_.per_thingy = {}
+
+    @_.receiver           = null
+    @_.dictionary         = null
+    @_.domain             = null
+    @_.on_sync            = null
+    @_.partials           = {}
+    @_.partials_subkeys   = {}
+    @_.partials_to_create = {}
+    @_.ready              = ready
 
     this
 
