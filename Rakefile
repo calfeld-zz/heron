@@ -1,7 +1,7 @@
 EXTERNALS = [
   [ "http://coffeescript.org/extras/coffee-script.js", "coffee-script.js" ],
-  [ "http://kineticjs.com/download/v4.1.2/kinetic-v4.1.2.js", "kinetic.js" ],
-  [ "http://code.jquery.com/jquery-1.8.3.js", "jquery.js" ]
+  [ "http://d3lp1msu2r81bx.cloudfront.net/kjs/js/lib/kinetic-v4.7.1.js", "kinetic.js" ],
+  [ "http://code.jquery.com/jquery-2.0.3.js", "jquery.js" ]
 ]
 EXTERNAL_DIR = "external"
 DOC_DIR      = "doc"
