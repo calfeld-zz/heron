@@ -307,8 +307,8 @@ module Heron
     # @return [undefined] undefined
     def domain_worker( info )
       # Sanitize domain name before using it as part of filename.
-      if info.domain !~ /^[\w.]+$/ || info.domain == '_'
-        @on_error.("ERROR: Invalid domain: #{info.domain}")
+      if info.domain !~ /^[\w\s.]+$/ || info.domain == '_'
+        @on_error.("Invalid domain: #{info.domain}")
         return
       end
 
