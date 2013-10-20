@@ -76,7 +76,7 @@ send_update_subkey = ( thingy, subkey ) ->
   if subkey == '_'
     data =
       typename: thingy.typename()
-      subkeys:  Heron.Util.keys( per_type.subkeys )
+      subkeys:  Heron.Util.keys( type_data.subkeys )
       attrs:    data
 
   @_.dictionary.update( @_.domain, key, data )
