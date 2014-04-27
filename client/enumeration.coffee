@@ -114,7 +114,7 @@ class Heron.Enumeration
       # above % l gives [ 0, l - 1]
       ( ( index % l ) + l ) % l
     else
-      Math.max( Math.min( index, 0 ), l - 1 )
+      Math.min( Math.max( index, 0 ), l - 1 )
 
   # Increment index by `n`.
   #
