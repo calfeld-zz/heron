@@ -38,7 +38,7 @@
     if (subkey === '_') {
       data = {
         typename: thingy.typename(),
-        subkeys: Heron.Util.keys(per_type.subkeys),
+        subkeys: Heron.Util.keys(type_data.subkeys),
         attrs: data
       };
     }
