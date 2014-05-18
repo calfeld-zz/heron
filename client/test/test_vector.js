@@ -2,14 +2,14 @@
 (function() {
   var V, assert, assert_float;
 
-  assert = require("chai").assert;
+  assert = require('chai').assert;
 
-  V = require("../vector.js").Heron.Vector;
+  V = require('../vector.js').Heron.Vector;
 
   assert_float = function(a, b) {
     var delta;
     delta = Math.abs(a - b);
-    return assert.isTrue(delta < 0.001, "expected difference to be small but was: " + delta);
+    return assert.isTrue(delta < 0.001, 'expected difference to be small but was: #{delta}');
   };
 
   describe('Heron.Geometry', function() {
@@ -138,12 +138,7 @@
         return assert.equal(a, b);
       });
     });
-    describe("to_s2", function() {
-      return it('should turn a vector into a string', function() {
-        return assert.equal(V.to_s2(V.vec2(1, 2)), "(1, 2)");
-      });
-    });
-    return describe("normal2", function() {
+    describe('normal2', function() {
       var a, b;
       a = V.vec2(1, 2);
       b = V.normal2(a);
@@ -153,6 +148,80 @@
       });
       return it('should return its argument', function() {
         return assert.equal(a, b);
+      });
+    });
+    describe('normalb2', function() {
+      var a, b;
+      a = V.vec2(1, 2);
+      b = V.normalb2(a);
+      it('should swap/negate its arguments coordinates', function() {
+        assert.equal(a[0], -2);
+        return assert.equal(a[1], 1);
+      });
+      return it('should return its argument', function() {
+        return assert.equal(a, b);
+      });
+    });
+    describe('angle2', function() {
+      it('should give the angle between vector and origin', function() {
+        var a, phi;
+        a = V.vec2(1, 1);
+        phi = V.angle2(a);
+        return assert.equal(Math.PI / 4, phi);
+      });
+      it('should work with x-axis', function() {
+        var a, phi;
+        a = V.vec2(1, 0);
+        phi = V.angle2(a);
+        return assert.equal(0, phi);
+      });
+      return it('should work with y-axis', function() {
+        var a, phi;
+        a = V.vec2(0, 1);
+        phi = V.angle2(a);
+        return assert.equal(Math.PI / 2, phi);
+      });
+    });
+    describe('multiply2', function() {
+      var a, b, m;
+      a = V.vec2(2, 3);
+      m = [[2, 3], [5, 7]];
+      b = V.multiply2(a, m);
+      it('should multiply a vector by a matrix', function() {
+        assert.equal(a[0], 19);
+        return assert.equal(a[1], 27);
+      });
+      return it('should return its argument', function() {
+        return assert.equal(a, b);
+      });
+    });
+    describe('rotate2', function() {
+      var a, b;
+      a = V.vec2(4, 2);
+      b = V.rotate2(a, Math.PI / 2);
+      it('should rotate a vector', function() {
+        assert.equal(a[0], 2);
+        return assert.equal(a[1], -4);
+      });
+      return it('should return its argument', function() {
+        return assert.equal(a, b);
+      });
+    });
+    describe('scale2', function() {
+      var a, b;
+      a = V.vec2(3, 5);
+      b = V.scale2(a, 2);
+      it('should scale a vector', function() {
+        assert.equal(a[0], 6);
+        return assert.equal(a[1], 10);
+      });
+      return it('should return its argument', function() {
+        return assert.equal(a, b);
+      });
+    });
+    return describe('to_s2', function() {
+      return it('should turn a vector into a string', function() {
+        return assert.equal(V.to_s2(V.vec2(1, 2)), '(1, 2)');
       });
     });
   });

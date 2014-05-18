@@ -63,11 +63,29 @@
       return Math.sqrt(Heron.Vector.dot2(v, v));
     };
 
+    Vector.scale2 = function(a, s) {
+      a[0] *= s;
+      a[1] *= s;
+      return a;
+    };
+
     Vector.normalize2 = function(a) {
-      var n;
-      n = Heron.Vector.length2(a);
-      a[0] /= n;
-      a[1] /= n;
+      return Heron.Vector.scale2(a, 1 / Heron.Vector.length2(a));
+    };
+
+    Vector.multiply2 = function(a, m) {
+      var t;
+      t = m[0][0] * a[0] + m[1][0] * a[1];
+      a[1] = m[0][1] * a[0] + m[1][1] * a[1];
+      a[0] = t;
+      return a;
+    };
+
+    Vector.rotate2 = function(a, phi) {
+      var c, s;
+      c = Math.cos(phi);
+      s = Math.sin(phi);
+      Heron.Vector.multiply2(a, [[c, -s], [s, c]]);
       return a;
     };
 
@@ -81,6 +99,32 @@
       a[0] = a[1];
       a[1] = -t;
       return a;
+    };
+
+    Vector.normalb2 = function(a) {
+      var t;
+      t = a[0];
+      a[0] = -a[1];
+      a[1] = t;
+      return a;
+    };
+
+    Vector.angle2 = function(a, b) {
+      var subphi;
+      if (a[0] === 0) {
+        if (a[1] < 0) {
+          return 3 * Math.PI / 2;
+        } else {
+          return Math.PI / 2;
+        }
+      } else {
+        subphi = Math.atan(a[1] / a[0]);
+        if (a[0] < 0) {
+          return Math.PI + subphi;
+        } else {
+          return (subphi + 2 * Math.PI) % (2 * Math.PI);
+        }
+      }
     };
 
     return Vector;

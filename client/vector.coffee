@@ -1,4 +1,4 @@
-# Copyright 2012 Christopher Alfeld
+# Copyright 2012-2014 Christopher Alfeld
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -124,16 +124,45 @@ class Heron.Vector
   @length2: ( v ) ->
     Math.sqrt( Heron.Vector.dot2( v, v ) )
 
+  # Scale v by s.
+  #
+  # @param [2-vector] a Vector to scale.
+  # @param [Float]    s Amount to scale by.
+  # @return [2-vector] a
+  @scale2: ( a, s ) ->
+    a[0] *= s
+    a[1] *= s
+    a
+
   # Normalize a.
   #
-  # a will have length 1 afeter this completes.
+  # a will have length 1 after this completes.
   #
   # @param [2-vector] a Vector to normalize.
   # @return [2-vector] a
   @normalize2: ( a ) ->
-    n = Heron.Vector.length2( a )
-    a[0] /= n
-    a[1] /= n
+    Heron.Vector.scale2( a, 1 / Heron.Vector.length2( a ) )
+
+  # Multiply a by matrix m.
+  #
+  # @param [2-vector] a Vector to multiply.
+  # @param [Array<Array<Float>>] m 2x2 matrix to multiply by.  Array of rows.
+  # @return [2-vector] a
+  @multiply2: ( a, m ) ->
+    t = m[0][0] * a[0] + m[1][0] * a[1]
+    a[1] = m[0][1] * a[0] + m[1][1] * a[1]
+    a[0] = t
+    a
+
+  # Rotate a by radians phi.
+  #
+  # @param [2-vector] a Vector to rotate.
+  # @param [Float] Angle to rotate in radians.
+  # @return [2-vector] a
+  @rotate2: ( a, phi ) ->
+    c = Math.cos( phi )
+    s = Math.sin( phi )
+    Heron.Vector.multiply2( a, [ [ c, -s ], [ s, c ] ] )
     a
 
   # String representation of v.
@@ -153,3 +182,30 @@ class Heron.Vector
     a[1] = -t
     a
 
+  # Convert a to a vector normal to a, other normal.
+  #
+  # @param [2-vector] a Vector to convert.
+  # @return [2-vector] a
+  @normalb2: ( a ) ->
+    t    = a[0]
+    a[0] = -a[1]
+    a[1] = t
+    a
+
+  # Find the angle between a and the x-axis.
+  #
+  # @param [2-vector] a First vector.
+  # @return [Float] Angle between a x-axis in radians.
+  @angle2: ( a, b ) ->
+    if a[0] == 0
+      if a[1] < 0
+        3 * Math.PI / 2
+      else
+        # Could be zero vector in which case any answer is okay.
+        Math.PI / 2
+    else
+      subphi = Math.atan( a[1] / a[0] )
+      if a[0] < 0
+        Math.PI + subphi
+      else
+        ( subphi + 2 * Math.PI ) % ( 2 * Math.PI )
